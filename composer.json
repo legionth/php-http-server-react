@@ -1,0 +1,32 @@
+{
+    "name": "legionth/php-server-react",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Niels Theen",
+            "email": "niels.theen@googlemail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": { "Legionth\\React\\Http\\": "src/" }
+    },
+    "autoload-dev": {
+        "psr-4": { "Tests\\Legionth\\React\\Http\\": "tests/" }
+    },
+    "require": {
+        "php": ">=5.3",
+        "react/event-loop": "0.3.*|0.4.*",
+        "react/socket-client": "^0.5",
+        "react/socket": "0.3.*|0.4.*",
+        "react/dns": "0.3.*|0.4.*",
+        "react/stream": "0.3.*|0.4.*",
+        "react/promise": "~1.0|~2.0",
+        "evenement/evenement": "~1.0|~2.0",
+        "ringcentral/psr7": "^1.2",
+        "clue/redis-protocol": "0.3.*"
+    },
+    "require-dev": {
+        "react/socket-client": "^0.5",
+        "clue/block-react": "^1.1"
+    }
+}
