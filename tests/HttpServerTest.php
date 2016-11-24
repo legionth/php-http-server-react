@@ -11,21 +11,22 @@ class HttpServerTest extends TestCase
     private $httpServer;
     private $loop;
     private $socket;
-    private $regularResponse;
     private $connection;
 
     public function setUp()
     {
         $this->loop = new React\EventLoop\StreamSelectLoop();
         $this->socket = new Socket($this->loop);
+        $response = new Response();
 
-        $this->regularResponse = new Response();
+        $callback = function ($request) use ($response) {
+            return $response;
+        };
+
         $this->httpServer = new HttpServer(
             $this->socket,
-            function ($request) {
-                return $this->regularResponse;
-            }
-            );
+            $callback
+        );
 
         $this->connection = $this->getMockBuilder('React\Socket\Connection')->disableOriginalConstructor()->setMethods(array('write', 'end', 'close', 'pause', 'resume', 'isReadable', 'isWritable'))->getMock();
     }

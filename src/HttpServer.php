@@ -23,8 +23,12 @@ class HttpServer extends EventEmitter
 	 * @param ServerInterface $socket - the server runs on this socket (ip address and port)
 	 * @param callable $callback - callback function which returns a RingCentral\Psr7\Response
 	 */
-	public function __construct(ServerInterface $socket, callable $callback)
+	public function __construct(ServerInterface $socket, $callback)
 	{
+	    if (!is_callable($callback)) {
+            throw new \Exception('The given parametr is not callable');
+	    }
+
 		$this->socket = $socket;
 		$this->callback = $callback;
 		$this->socket->on('connection', array(
@@ -48,52 +52,55 @@ class HttpServer extends EventEmitter
 
 		$chunkStream = new ReadableStream();
 		$chunkedDecoder = new ChunkedDecoder($chunkStream);
-		
+
 		$headerStream = new ReadableStream();
 		$headerDecoder = new HeaderDecoder($headerStream);
-		
+
 		$connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream) {
 		    if (!$headerCompleted) {
-				$headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
-					$request = RingCentral\Psr7\parse_request($header);
-					$data = str_replace($header, '', $data);
-					$headerCompleted = true;
-				});
-				$headerStream->emit('data', array($data));
-			}
+		        $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
+		            $request = RingCentral\Psr7\parse_request($header);
+		            $data = str_replace($header, '', $data);
+		            $headerCompleted = true;
+		        });
+		            $headerStream->emit('data', array($data));
+		    }
 
-			if (isset($request)) {
-				if ($this->isChunkedEncodingActive($request)) {
-					$chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $that, $connection) {
-						$bodyBuffer .= $chunk;
-						if (strlen($chunk) == 0) {
-							$that->sendBody($bodyBuffer, $connection, $request);
-						}
-					});
-					$chunkStream->emit('data', array($data));
-				}
-				else if (empty($request->getHeader('Content-Length')) || $request->getHeader('Content-Length')[0] == 0) {
-					$that->handleRequest($connection, $request);
-				}
-				else {
-					$bodyBuffer .= $data;
-					if (!empty($request->getHeader('Content-Length')) && strlen($bodyBuffer) == $request->getHeader('Content-Length')[0]) {
-						$that->sendBody($bodyBuffer, $connection, $request);
-					}
-				}
-			}
+		    if (isset($request)) {
+		        if ($that->isChunkedEncodingActive($request)) {
+		            $chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $that, $connection) {
+		                $bodyBuffer .= $chunk;
+		                if (strlen($chunk) == 0) {
+		                    $that->sendBody($bodyBuffer, $connection, $request);
+		                }
+		            });
+		                $chunkStream->emit('data', array($data));
+		        }
+		        else {
+		            $bodyBuffer .= $data;
+		            $contentLengthArray = $request->getHeader('Content-Length');
+
+		            if (!empty($contentLengthArray) && strlen($bodyBuffer) == $contentLengthArray[0]) {
+		                $that->sendBody($bodyBuffer, $connection, $request);
+		            } else if (empty($contentLengthArray) || $contentLengthArray[0] == 0) {
+		                $that->handleRequest($connection, $request);
+		            }
+		        }
+		    }
 		});
 	}
-	
+
 	/**
 	 * Checks if the 'Transfer-Encoding: chunked' is set anywhere in the header
 	 * @param Request $request - user request object containing the header
 	 * @return boolean
 	 */
-	private function isChunkedEncodingActive(Request $request)
+	public function isChunkedEncodingActive(Request $request)
 	{
-	    if (!empty($request->getHeader('Transfer-Encoding'))) {
-	        foreach ($request->getHeader('Transfer-Encoding') as $value) {
+	    $transferEncodingArray = $request->getHeader('Transfer-Encoding');
+
+	    if (!empty($transferEncodingArray)) {
+	        foreach ($transferEncodingArray as $value) {
 	            if ($value == 'chunked') {
 	                return true;
 	            }
@@ -101,10 +108,10 @@ class HttpServer extends EventEmitter
 	    }
 	    return false;
 	}
-	
+
 	/**
 	 * Processes the request by the given callback functions and writes the responses on the connection stream
-	 * 
+	 *
 	 * @param ConnectionInterface $connection - connection between user and server, the response will be written
 	 *                                          on this connection
 	 * @param Request $request - User request to be handled by the callback function
@@ -116,7 +123,7 @@ class HttpServer extends EventEmitter
 		$connection->write(RingCentral\Psr7\str($response));
 		$connection->end();
 	}
-	
+
 	/**
 	 * Adds the body to the request before handling the request
 	 * @param string $body - body to be added to the request object
