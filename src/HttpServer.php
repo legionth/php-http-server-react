@@ -57,6 +57,7 @@ class HttpServer extends EventEmitter
 		$bodyCompleted = false;
 		$that = $this;
 		$callback = $this->callback;
+		$errorResponse = $this->errorResponse;
 
 		$chunkStream = new ReadableStream();
 		$chunkedDecoder = new ChunkedDecoder($chunkStream);
@@ -64,7 +65,7 @@ class HttpServer extends EventEmitter
 		$headerStream = new ReadableStream();
 		$headerDecoder = new HeaderDecoder($headerStream);
 
-		$connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream, $callback) {
+		$connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream, $callback, $errorResponse) {
 		    $promise = new Promise(function ($resolve, $reject) use ($data, $connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream, $callback)
 		    {
     		    if (!$headerCompleted) {
@@ -104,8 +105,8 @@ class HttpServer extends EventEmitter
 		    $promise->then(function ($response) use ($connection) {
 		        $connection->write(RingCentral\Psr7\str($response));
 		        $connection->end();
-		    }, function () use ($connection) {
-		        $connection->write(RingCentral\Psr7\str($this->errorResponse));
+		    }, function () use ($connection, $errorResponse) {
+		        $connection->write(RingCentral\Psr7\str($errorResponse));
 		        $connection->end();
 		    });
 		});
