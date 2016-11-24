@@ -22,8 +22,7 @@
         "react/stream": "0.3.*|0.4.*",
         "react/promise": "~1.0|~2.0",
         "evenement/evenement": "~1.0|~2.0",
-        "ringcentral/psr7": "^1.2",
-        "clue/redis-protocol": "0.3.*"
+        "ringcentral/psr7": "^1.2"
     },
     "require-dev": {
         "react/socket-client": "^0.5",
