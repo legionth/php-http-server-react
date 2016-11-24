@@ -11,19 +11,21 @@ use RingCentral\Psr7\Request;
 use React\Socket\ConnectionInterface;
 use RingCentral;
 use React\Stream\ReadableStream;
+use React\Promise\Promise;
 
 class HttpServer extends EventEmitter
 {
 
 	private $socket;
 	private $callback;
+	private $errorResponse;
 
 	/**
 	 *
 	 * @param ServerInterface $socket - the server runs on this socket (ip address and port)
 	 * @param callable $callback - callback function which returns a RingCentral\Psr7\Response
 	 */
-	public function __construct(ServerInterface $socket, $callback)
+	public function __construct(ServerInterface $socket, $callback, $errorResponse = null)
 	{
 	    if (!is_callable($callback)) {
             throw new \Exception('The given parametr is not callable');
@@ -35,6 +37,11 @@ class HttpServer extends EventEmitter
 			$this,
 			'handleConnection'
 		));
+
+		if ($errorResponse === null) {
+		    $errorResponse = new Response(500);
+		}
+		$this->errorResponse = $errorResponse;
 	}
 
 	/**
@@ -49,6 +56,8 @@ class HttpServer extends EventEmitter
 		$headerCompleted = false;
 		$bodyCompleted = false;
 		$that = $this;
+		$callback = $this->callback;
+		$errorResponse = $this->errorResponse;
 
 		$chunkStream = new ReadableStream();
 		$chunkedDecoder = new ChunkedDecoder($chunkStream);
@@ -56,37 +65,50 @@ class HttpServer extends EventEmitter
 		$headerStream = new ReadableStream();
 		$headerDecoder = new HeaderDecoder($headerStream);
 
-		$connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream) {
-		    if (!$headerCompleted) {
-		        $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
-		            $request = RingCentral\Psr7\parse_request($header);
-		            $data = str_replace($header, '', $data);
-		            $headerCompleted = true;
-		        });
+		$connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream, $callback, $errorResponse) {
+		    $promise = new Promise(function ($resolve, $reject) use ($data, $connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream, $callback)
+		    {
+    		    if (!$headerCompleted) {
+    		        $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
+    		            $request = RingCentral\Psr7\parse_request($header);
+    		            $data = str_replace($header, '', $data);
+    		            $headerCompleted = true;
+    		        });
 		            $headerStream->emit('data', array($data));
-		    }
+    		    }
 
-		    if (isset($request)) {
-		        if ($that->isChunkedEncodingActive($request)) {
-		            $chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $that, $connection) {
-		                $bodyBuffer .= $chunk;
-		                if (strlen($chunk) == 0) {
-		                    $that->sendBody($bodyBuffer, $connection, $request);
-		                }
-		            });
+    		    if (isset($request)) {
+    		        if ($that->isChunkedEncodingActive($request)) {
+    		            $chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $that, $connection, $callback, $resolve) {
+    		                $bodyBuffer .= $chunk;
+    		                if (strlen($chunk) == 0) {
+    		                    $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
+    		                    $resolve($callback($request));
+		                    }
+    		            });
 		                $chunkStream->emit('data', array($data));
-		        }
-		        else {
-		            $bodyBuffer .= $data;
-		            $contentLengthArray = $request->getHeader('Content-Length');
+    		        }
+    		        else {
+    		            $bodyBuffer .= $data;
+    		            $contentLengthArray = $request->getHeader('Content-Length');
 
-		            if (!empty($contentLengthArray) && strlen($bodyBuffer) == $contentLengthArray[0]) {
-		                $that->sendBody($bodyBuffer, $connection, $request);
-		            } else if (empty($contentLengthArray) || $contentLengthArray[0] == 0) {
-		                $that->handleRequest($connection, $request);
-		            }
-		        }
-		    }
+    		            if (!empty($contentLengthArray) && strlen($bodyBuffer) == $contentLengthArray[0]) {
+    		                $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
+    		                $resolve($callback($request));
+    		            } else if (empty($contentLengthArray) || $contentLengthArray[0] == 0) {
+    		                $resolve($callback($request));
+    		            }
+    		        }
+    		    }
+            });
+
+		    $promise->then(function ($response) use ($connection) {
+		        $connection->write(RingCentral\Psr7\str($response));
+		        $connection->end();
+		    }, function () use ($connection, $errorResponse) {
+		        $connection->write(RingCentral\Psr7\str($errorResponse));
+		        $connection->end();
+		    });
 		});
 	}
 
@@ -107,32 +129,5 @@ class HttpServer extends EventEmitter
 	        }
 	    }
 	    return false;
-	}
-
-	/**
-	 * Processes the request by the given callback functions and writes the responses on the connection stream
-	 *
-	 * @param ConnectionInterface $connection - connection between user and server, the response will be written
-	 *                                          on this connection
-	 * @param Request $request - User request to be handled by the callback function
-	 */
-	public function handleRequest(ConnectionInterface $connection, Request $request)
-	{
-		$callback = $this->callback;
-		$response = $callback($request);
-		$connection->write(RingCentral\Psr7\str($response));
-		$connection->end();
-	}
-
-	/**
-	 * Adds the body to the request before handling the request
-	 * @param string $body - body to be added to the request object
-	 * @param ConnectionInterface $connection - client-server connection
-	 * @param Request $request - Adds the body to this request object
-	 */
-	public function sendBody($body, ConnectionInterface $connection, Request $request)
-	{
-		$request = $request->withBody(RingCentral\Psr7\stream_for($body));
-		$this->handleRequest($connection, $request);
 	}
 }
