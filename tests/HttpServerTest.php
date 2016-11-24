@@ -58,12 +58,12 @@ class HttpServerTest extends TestCase
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
         $this->connection->emit('data', array($request));
     }
-    
+
     public function testThrowException()
     {
         $loop = new React\EventLoop\StreamSelectLoop();
         $socket = new Socket($this->loop);
-        
+
         $httpServer = new HttpServer(
             $socket,
             function ($request) {
@@ -71,12 +71,12 @@ class HttpServerTest extends TestCase
             },
             new Response(500, array('Content-Length' => 5), 'error')
         );
-        
+
         $request = "GET /ip HTTP/1.1\r\nHost: httpbin.org\r\n\r\n";
-        $connection = new ConnectionStub();
-        $socket->emit('connection', array($connection));
-        $connection->emit('data', array($request));
-        $this->assertSame("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 5\r\n\r\nerror", $connection->getData());
-        
+
+        $socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 5\r\n\r\nerror"));
+        $this->connection->emit('data', array($request));
+
     }
 }
