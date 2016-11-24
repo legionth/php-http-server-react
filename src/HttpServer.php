@@ -17,13 +17,14 @@ class HttpServer extends EventEmitter
 
     private $socket;
     private $callback;
+    private $errorResponse;
 
     /**
      *
      * @param ServerInterface $socket - the server runs on this socket (ip address and port)
      * @param callable $callback - callback function which returns a RingCentral\Psr7\Response
      */
-    public function __construct(ServerInterface $socket, $callback)
+    public function __construct(ServerInterface $socket, $callback, $errorResponse = null)
     {
         if (!is_callable($callback)) {
             throw new \Exception('The given parametr is not callable');
