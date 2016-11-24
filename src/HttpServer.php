@@ -56,6 +56,7 @@ class HttpServer extends EventEmitter
 		$headerCompleted = false;
 		$bodyCompleted = false;
 		$that = $this;
+		$callback = $this->callback;
 
 		$chunkStream = new ReadableStream();
 		$chunkedDecoder = new ChunkedDecoder($chunkStream);
@@ -63,11 +64,9 @@ class HttpServer extends EventEmitter
 		$headerStream = new ReadableStream();
 		$headerDecoder = new HeaderDecoder($headerStream);
 
-		$connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream) {
-		    $promise = new Promise(function ($resolve, $reject) use ($data, $connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream)
+		$connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream, $callback) {
+		    $promise = new Promise(function ($resolve, $reject) use ($data, $connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream, $callback)
 		    {
-		        $callback = $this->callback;
-
     		    if (!$headerCompleted) {
     		        $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
     		            $request = RingCentral\Psr7\parse_request($header);
