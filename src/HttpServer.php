@@ -40,8 +40,7 @@ class HttpServer extends EventEmitter
 	/**
 	 * Handles the requests of a client
 	 *
-	 * @param ConnectionInterface $connection
-	 *        	- client-server connection stream
+	 * @param ConnectionInterface $connection - client-server connection stream
 	 */
 	public function handleConnection(ConnectionInterface $connection)
 	{
@@ -63,7 +62,7 @@ class HttpServer extends EventEmitter
 		            $data = str_replace($header, '', $data);
 		            $headerCompleted = true;
 		        });
-		            $headerStream->emit('data', array($data));
+	            $headerStream->emit('data', array($data));
 		    }
 
 		    if (isset($request)) {
@@ -74,9 +73,8 @@ class HttpServer extends EventEmitter
 		                    $that->sendBody($bodyBuffer, $connection, $request);
 		                }
 		            });
-		                $chunkStream->emit('data', array($data));
-		        }
-		        else {
+	                $chunkStream->emit('data', array($data));
+		        } else {
 		            $bodyBuffer .= $data;
 		            $contentLengthArray = $request->getHeader('Content-Length');
 
@@ -126,6 +124,7 @@ class HttpServer extends EventEmitter
 
 	/**
 	 * Adds the body to the request before handling the request
+	 * 
 	 * @param string $body - body to be added to the request object
 	 * @param ConnectionInterface $connection - client-server connection
 	 * @param Request $request - Adds the body to this request object

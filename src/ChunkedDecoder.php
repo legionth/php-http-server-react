@@ -12,15 +12,10 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
     const CRLF = "\r\n";
     
     private $closed = false;
-
     private $input;
-
     private $buffer = '';
-
     private $chunkSize = 0;
-
     private $actualChunksize = 0;
-
     private $chunkHeaderComplete = false;
 
     public function __construct(ReadableStreamInterface $input)
@@ -49,8 +44,7 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
     /**
      * Extracts the hexadecimal header and removes it from the given data string
      *
-     * @param string $data
-     *            - complete or incomplete chunked string
+     * @param string $data - complete or incomplete chunked string
      * @return string
      */
     private function handleChunkHeader($data)
