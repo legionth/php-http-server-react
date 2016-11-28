@@ -120,6 +120,9 @@ class HttpServer extends EventEmitter
 
         try {
             $response = $callback($request);
+            if (!$response instanceof Response) {
+                throw new InvalidResponseTypeException('The returned type of callback function is invalid');
+            }
         } catch (\Exception $exception) {
             $connection->write(RingCentral\Psr7\str(new Response(500)));
             $connection->end();
