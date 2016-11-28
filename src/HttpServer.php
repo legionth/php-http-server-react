@@ -26,7 +26,7 @@ class HttpServer extends EventEmitter
     public function __construct(ServerInterface $socket, $callback)
     {
         if (!is_callable($callback)) {
-            throw new \Exception('The given parametr is not callable');
+            throw new \Exception('The given parameter is not callable');
         }
 
         $this->socket = $socket;
@@ -124,7 +124,7 @@ class HttpServer extends EventEmitter
 
     /**
      * Adds the body to the request before handling the request
-     * 
+     *
      * @param string $body - body to be added to the request object
      * @param ConnectionInterface $connection - client-server connection
      * @param Request $request - Adds the body to this request object

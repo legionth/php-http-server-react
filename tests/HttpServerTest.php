@@ -31,6 +31,15 @@ class HttpServerTest extends TestCase
         $this->connection = $this->getMockBuilder('React\Socket\Connection')->disableOriginalConstructor()->setMethods(array('write', 'end', 'close', 'pause', 'resume', 'isReadable', 'isWritable'))->getMock();
     }
 
+    /**
+     * @expectedException Exception
+     */
+    public function testIsNotCallable()
+    {
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, 'not correct');
+    }
+
     public function testRequestWithoutBody()
     {
         $request = "GET /ip HTTP/1.1\r\nHost: httpbin.org\r\n\r\n";
