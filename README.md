@@ -7,7 +7,8 @@ HTTP server written in PHP on top of ReactPHP.
  * [HttpServer](#httpserver)
   * [Create callback function](#create-a-callback-function)
  * [ChunkedDecoder](#chunkeddecoder)
-  * [HeaderDecoder](#headerdecoder)
+ * [HeaderDecoder](#headerdecoder)
+ * [Handling exceptions](#handling-exceptions)
 * [License](#license)
 
 ## Usage
@@ -51,6 +52,46 @@ This class is based on [ReactPHP streams](https://github.com/reactphp/stream). T
 ### HeaderDecoder
 
 The `HeaderDecoder` is used to decode and identify the header of a request. The header will be send when the header is completed which is marked by `\r\n\r\n`.
+
+#### Handling exceptions
+
+The code in the callback function can throw Exceptions, but this shouldn't affect the running server.
+So every uncaught exception will be caught by the `HttpServer` and a 'HTTP 500 Internal Server Error' response
+will be send to the client, when an exception occures.
+
+Example:
+```php
+<?php
+
+$loop = React\EventLoop\Factory::create();
+
+$callback = function (Request $request) use ($loop) {
+    throw new Exception();
+};
+
+$socket = new Socket($loop);
+$socket->listen(10000, 'localhost');
+
+$server = new HttpServer($socket, $callback);
+$loop->run();
+```
+
+This example will lead to a 'HTTP 500 Internal Server Error' on any request.
+
+Hint: This response is the default response on an uncaught exception. If you want the user to see more than any empty site in the browser,
+catch your exception and create your own Response Object with header and body.
+
+```php
+<?php
+$callback = function ($request) {
+    try {
+        //something that could go wrong
+    } catch(Exception $exception) {
+        return new Response(500, array('Content-Length' => 5), 'error');
+    }
+}
+$httpServer = new HttpServer($socket, $callback);
+```
 
 ## Install
 
