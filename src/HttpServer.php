@@ -59,7 +59,7 @@ class HttpServer extends EventEmitter
             if (!$headerCompleted) {
                 $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
                     $request = RingCentral\Psr7\parse_request($header);
-                    $data = str_replace($header, '', $data);
+                    $data = substr($data, strlen($header));
                     $headerCompleted = true;
                 });
                 $headerStream->emit('data', array($data));
