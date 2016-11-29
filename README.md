@@ -96,7 +96,12 @@ $httpServer = new HttpServer($socket, $callback);
 
 #### Return type of the callback function
 
-The return type of the callback function **must** be a response object.
+The return type of the callback function **must** be a [response object](https://packagist.org/packages/ringcentral/psr7) or
+a [promise](https://github.com/reactphp/promise).
+
+If you have blocking operations in the callback function, you should consider using promises. Not using them can slow down the
+server. Checkout the `examples` folder how to use promises in the callback function.
+
 Other types aren't allowed and will lead to an 'HTTP 500 Internal Server Error' for the client.
 
 ## Install
