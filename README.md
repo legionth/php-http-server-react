@@ -9,6 +9,7 @@ HTTP server written in PHP on top of ReactPHP.
  * [ChunkedDecoder](#chunkeddecoder)
  * [HeaderDecoder](#headerdecoder)
  * [Handling exceptions](#handling-exceptions)
+ * [Return type of the callback function](#return-type-of-the-callback-function)
 * [License](#license)
 
 ## Usage
@@ -92,6 +93,11 @@ $callback = function ($request) {
 }
 $httpServer = new HttpServer($socket, $callback);
 ```
+
+#### Return type of the callback function
+
+The return type of the callback function **must** be a response object.
+Other types aren't allowed and will lead to an 'HTTP 500 Internal Server Error' for the client.
 
 ## Install
 

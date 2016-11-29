@@ -73,6 +73,20 @@ class HttpServerTest extends TestCase
         $socket->emit('connection', array($this->connection));
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\n\r\n"));
         $this->connection->emit('data', array($request));
+    }
 
+    public function testWrongResponseType()
+    {
+        $request = "GET /something HTTP/1.1\r\nHost: example.org\r\n\r\n";
+
+        $callback = function() {
+            return "This is an invalid type";
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+        $socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\n\r\n"));
+        $this->connection->emit('data', array($request));
     }
 }
