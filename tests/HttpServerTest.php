@@ -32,7 +32,7 @@ class HttpServerTest extends TestCase
     }
 
     /**
-     * @expectedException Exception
+     * @expectedException InvalidArgumentException
      */
     public function testIsNotCallable()
     {
