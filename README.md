@@ -101,8 +101,9 @@ a [promise](https://github.com/reactphp/promise).
 
 If you have blocking operations in the callback function, you should consider using promises. Not using them can slow down the
 server. Checkout the `examples` folder how to use promises in the callback function.
+The promise **must** return a response object anything else will lead to a 'HTTP 500 Internal Server Error' response for the client.
 
-Other types aren't allowed and will lead to an 'HTTP 500 Internal Server Error' for the client.
+Other types aren't allowed and will lead to a 'HTTP 500 Internal Server Error' response for the client.
 
 ## Install
 
