@@ -148,8 +148,14 @@ class HttpServer extends EventEmitter
      */
     private function handlePromise(Connection $connection, Promise $promise)
     {
-        $promise->then(function ($response) use ($connection){
-            $connection->write(RingCentral\Psr7\str($response));
+        $promise->then(function ($response) use ($connection, $promise){
+            $responseString = RingCentral\Psr7\str(new Response(500));
+
+            if ($response instanceof Response) {
+                $responseString = RingCentral\Psr7\str($response);
+            }
+
+            $connection->write($responseString);
             $connection->end();
         },
         function () use ($connection) {

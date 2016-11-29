@@ -108,4 +108,40 @@ class HttpServerTest extends TestCase
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
         $this->connection->emit('data', array($request));
     }
+
+    public function testPromiseReturnsInvalidValue()
+    {
+        $callback = function () {
+            return new Promise(function ($resolve, $reject) {
+                $resolve('Invalid');
+            });
+        };
+
+        $request = "GET /ip HTTP/1.1\r\nHost: httpbin.org\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testPromiseThrowsException()
+    {
+        $callback = function () {
+            return new Promise(function ($resolve, $reject) {
+                throw new Exception();
+            });
+        };
+
+        $request = "GET /ip HTTP/1.1\r\nHost: httpbin.org\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
 }
