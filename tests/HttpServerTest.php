@@ -59,4 +59,20 @@ class HttpServerTest extends TestCase
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
         $this->connection->emit('data', array($request));
     }
+
+    public function testCallbackFunctionThrowsException()
+    {
+        $request = "GET /something HTTP/1.1\r\nHost: example.org\r\n\r\n";
+
+        $callback = function() {
+            throw new Exception();
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+        $socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+
+    }
 }

@@ -117,14 +117,22 @@ class HttpServer extends EventEmitter
     public function handleRequest(ConnectionInterface $connection, Request $request)
     {
         $callback = $this->callback;
-        $response = $callback($request);
+
+        try {
+            $response = $callback($request);
+        } catch (\Exception $exception) {
+            $connection->write(RingCentral\Psr7\str(new Response(500)));
+            $connection->end();
+            return;
+        }
+
         $connection->write(RingCentral\Psr7\str($response));
         $connection->end();
     }
 
     /**
      * Adds the body to the request before handling the request
-     * 
+     *
      * @param string $body - body to be added to the request object
      * @param ConnectionInterface $connection - client-server connection
      * @param Request $request - Adds the body to this request object
