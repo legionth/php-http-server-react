@@ -12,12 +12,17 @@ $callback = function($request) {
 <body>
     <h1> Hello World! </h1>
     <p> This is your own little server. Written in PHP :-) </p>
-    <p> The request to this server was: </p>' . nl2br(RingCentral\Psr7\str($request)) . '
+    <p><b> The request to this server was: </b></p>' . nl2br(RingCentral\Psr7\str($request)) . '
 </body>
 </html>';
-    
 
-    return new Response(200, array('Content-Length' => strlen($body)), $body);
+    return new Response(
+        200,
+        array(
+            'Content-Length' => strlen($body),
+            'Content-Type' => 'text/html'
+        ),
+        $body);
 };
 
 $loop = React\EventLoop\Factory::create();
