@@ -91,7 +91,7 @@ class HttpServerTest extends TestCase
         $this->connection->emit('data', array($request));
     }
 
-    public function testCallbackFunctionReturnsPromise()
+    public function testCallbackFunctionReturnsPromiseAndServerResponsesWithOkMessage()
     {
         $callback = function () {
             return new Promise(function ($resolve, $reject) {
@@ -109,7 +109,7 @@ class HttpServerTest extends TestCase
         $this->connection->emit('data', array($request));
     }
 
-    public function testPromiseReturnsInvalidValue()
+    public function testPromiseReturnsInvalidValueAndServerResponsesWhithInternalErrorMessage()
     {
         $callback = function () {
             return new Promise(function ($resolve, $reject) {
@@ -127,7 +127,7 @@ class HttpServerTest extends TestCase
         $this->connection->emit('data', array($request));
     }
 
-    public function testPromiseThrowsException()
+    public function testPromiseThrowsExceptionAndServerResponsesWithInternalServer()
     {
         $callback = function () {
             return new Promise(function ($resolve, $reject) {
