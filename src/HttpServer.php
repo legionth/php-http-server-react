@@ -122,22 +122,18 @@ class HttpServer extends EventEmitter
         try {
             $response = $callback($request);
 
-            if ($response instanceof Promise) {
-                $this->handlePromise($connection, $response);
-                return;
+            $promise = $response;
+            if (!$promise instanceof Promise) {
+                $promise = new Promise(function($resolve, $reject) use ($response){
+                    return $resolve($response);
+                });
             }
 
-            if (!$response instanceof Response) {
-                throw new InvalidResponseTypeException('The returned type of callback function is invalid');
-            }
+            $this->handlePromise($connection, $promise);
         } catch (\Exception $exception) {
             $connection->write(RingCentral\Psr7\str(new Response(500)));
             $connection->end();
-            return;
         }
-
-        $connection->write(RingCentral\Psr7\str($response));
-        $connection->end();
     }
 
     /**
@@ -148,20 +144,22 @@ class HttpServer extends EventEmitter
      */
     private function handlePromise(Connection $connection, Promise $promise)
     {
-        $promise->then(function ($response) use ($connection, $promise){
-            $responseString = RingCentral\Psr7\str(new Response(500));
+        $promise->then(
+            function ($response) use ($connection, $promise){
+                $responseString = RingCentral\Psr7\str(new Response(500));
 
-            if ($response instanceof Response) {
-                $responseString = RingCentral\Psr7\str($response);
+                if ($response instanceof Response) {
+                    $responseString = RingCentral\Psr7\str($response);
+                }
+
+                $connection->write($responseString);
+                $connection->end();
+            },
+            function () use ($connection) {
+                $connection->write(RingCentral\Psr7\str(new Response(500)));
+                $connection->end();
             }
-
-            $connection->write($responseString);
-            $connection->end();
-        },
-        function () use ($connection) {
-            $connection->write(RingCentral\Psr7\str(new Response(500)));
-            $connection->end();
-        });
+        );
     }
 
     /**
