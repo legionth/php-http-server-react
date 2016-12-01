@@ -7,15 +7,16 @@ use RingCentral\Psr7\Response;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$callback = function() {
-    return new Promise(function($resolve, $reject) {
+$loop = React\EventLoop\Factory::create();
+
+$callback = function() use ($loop) {
+    return new Promise(function($resolve, $reject) use ($loop) {
         // Some heavy caluclations
-        sleep(2);
-        $resolve(new Response());
+        $loop->addTimer(2, function () use ($resolve){
+            $resolve(new Response());
+        });
     });
 };
-
-$loop = React\EventLoop\Factory::create();
 
 $socket = new Socket($loop);
 $socket->listen(10000, 'localhost');
