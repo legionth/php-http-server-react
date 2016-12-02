@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 (2016-12-02)
+
+* Updated composer
+
 ## 0.1.0 (2016-12-02)
 
 * Handle wrong return types returned by callback function
