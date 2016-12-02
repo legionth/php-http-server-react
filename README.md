@@ -101,7 +101,15 @@ Other types aren't allowed and will lead to an 'HTTP 500 Internal Server Error' 
 
 ## Install
 
-Will be added to composer soon :-)
+[New to Composer?](https://getcomposer.org/doc/00-intro.md)
+
+This will install the latest supported version:
+
+```bash
+$ composer require legionth/http-server-react:^0.1
+```
+
+See also the [CHANGELOG](CHANGELOG.md) for details about version upgrades.
 
 ## License
 
