@@ -12,12 +12,15 @@ use React\Socket\ConnectionInterface;
 use RingCentral;
 use React\Stream\ReadableStream;
 use React\Promise\Promise;
+use Legionth\React\Http\Middleware;
 
 class HttpServer extends EventEmitter
 {
 
     private $socket;
     private $callback;
+    private $middleware;
+    private $lastMiddleware;
 
     /**
      *
@@ -36,6 +39,11 @@ class HttpServer extends EventEmitter
             $this,
             'handleConnection'
         ));
+    }
+
+    public function addMiddleware(Middleware $middlware)
+    {
+        $this->middleware = $middlware;
     }
 
     /**
@@ -120,7 +128,8 @@ class HttpServer extends EventEmitter
         $callback = $this->callback;
 
         try {
-            $response = $callback($request);
+            $response = $this->middleware->process($request, $callback);
+//             $response = $callback($request);
 
             $promise = $response;
             if (!$promise instanceof Promise) {
