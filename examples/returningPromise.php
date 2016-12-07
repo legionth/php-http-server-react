@@ -9,12 +9,16 @@ require __DIR__ . '/../vendor/autoload.php';
 
 $loop = React\EventLoop\Factory::create();
 
-$callback = function() use ($loop) {
-    return new Promise(function($resolve, $reject) use ($loop) {
-        // Some heavy caluclations
-        $loop->addTimer(2, function () use ($resolve){
-            $resolve(new Response());
-        });
+$pseudoHeavyCalculation = function ($resolve) use ($loop){
+    // Needs 2 seconds to answer a reequest caused by "calculations"
+    $loop->addTimer(2, function () use ($resolve){
+        $resolve(new Response());
+    });
+};
+
+$callback = function() use ($loop, $pseudoHeavyCalculation) {
+    return new Promise(function($resolve, $reject) use ($loop, $pseudoHeavyCalculation) {
+        $pseudoHeavyCalculation($resolve);
     });
 };
 
