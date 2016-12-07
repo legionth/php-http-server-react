@@ -6,6 +6,7 @@ use RingCentral\Psr7\Response;
 use RingCentral\Psr7\Request;
 use React\Socket\Connection;
 use React\Promise\Promise;
+use Psr\Http\Message\RequestInterface;
 
 class HttpServerTest extends TestCase
 {
@@ -151,6 +152,99 @@ class HttpServerTest extends TestCase
 
         $socket->emit('connection', array($this->connection));
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testAddOneMiddleware()
+    {
+        $callback = function (RequestInterface $request) {
+            if (empty($request->getHeader('From'))) {
+                throw new Exception();
+            }
+
+            return new Response();
+        };
+
+        $middleware = function (RequestInterface $request, array $callables) {
+            $request = $request->withAddedHeader('From', 'user@example.com');
+
+            $next = array_shift($callables);
+            return $next($request, $callables);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+        $server->addMiddleware($middleware);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testAddTwoMiddlwares()
+    {
+        $callback = function (RequestInterface $request) {
+            // Second middlware should remove the header added by the first middleware
+            if (empty($request->getHeader('From'))) {
+                return new Response();
+            }
+            throw new Exception();
+        };
+
+        $middleware = function (RequestInterface $request, array $callables) {
+            $request = $request->withAddedHeader('From', 'user@example.com');
+
+            $next = array_shift($callables);
+            return $next($request, $callables);
+        };
+
+        $middlewareTwo = function (RequestInterface $request, array $callables) {
+            $request = $request->withoutHeader('From');
+
+            $next = array_shift($callables);
+            return $next($request, $callables);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+        $server->addMiddleware($middleware);
+        $server->addMiddleware($middlewareTwo);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testMiddlewareReturnsForbiddenMessage()
+    {
+        $callback = function (RequestInterface $request) {
+            return new Response();
+        };
+
+        $middleware = function (RequestInterface $request, array $callables) {
+            $host = $request->getHeader('Host');
+            if ($host[0] == "me.you") {
+                return new Response(400);
+            }
+            $next = array_shift($callables);
+            return $next($request, $callables);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+        $server->addMiddleware($middleware);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
         $this->connection->emit('data', array($request));
     }
 }

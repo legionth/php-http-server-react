@@ -19,8 +19,7 @@ class HttpServer extends EventEmitter
 
     private $socket;
     private $callback;
-    private $middleware;
-    private $lastMiddleware;
+    private $middlewares;
 
     /**
      *
@@ -39,11 +38,13 @@ class HttpServer extends EventEmitter
             $this,
             'handleConnection'
         ));
+
+        $this->middlewares = array();
     }
 
-    public function addMiddleware(Middleware $middlware)
+    public function addMiddleware(callable $middleware)
     {
-        $this->middleware = $middlware;
+        $this->middlewares[] = $middleware;
     }
 
     /**
@@ -128,8 +129,8 @@ class HttpServer extends EventEmitter
         $callback = $this->callback;
 
         try {
-            $response = $this->middleware->process($request, $callback);
-//             $response = $callback($request);
+            $this->middlewares[] = $this->callback;
+            $response = $this->middlewares[0]($request, $this->middlewares);
 
             $promise = $response;
             if (!$promise instanceof Promise) {
