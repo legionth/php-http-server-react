@@ -10,6 +10,8 @@ HTTP server written in PHP on top of ReactPHP.
  * [HeaderDecoder](#headerdecoder)
  * [Handling exceptions](#handling-exceptions)
  * [Return type of the callback function](#return-type-of-the-callback-function)
+ * [Middleware](#middleware)
+  * [Creating your own middleware](#creating-your-own-middleware)
 * [License](#license)
 
 ## Usage
@@ -114,6 +116,44 @@ Checkout the `examples` folder how to use promises in the callback function.
 The promise **must** return a response object anything else will lead to a 'HTTP 500 Internal Server Error' response for the client.
 
 Other types aren't allowed and will lead to a 'HTTP 500 Internal Server Error' response for the client.
+
+### Middleware
+
+#### Creating your own middleware
+
+You can create your own middleware, which lies between the server and the callback function. Use this middleware to manipulate the requests or
+responses of the server. You can add as many middlewar as you want you just need to follow the following design
+
+```php
+$callback = function (RequestInterface $request) {
+    return new Response();
+}
+
+$middleware = function (RequestInterface $request, callable callables) {
+    // check or maninpulate the request object
+    ...
+    // fetch the next part of the callable chain und remove it from the array
+    $next = array_shift($callables);
+    // execute the next callable and return its value
+    return $next($request, $callables);
+}
+
+$server = new HttpServer($socket, $callback);
+$server->addMiddleware($middleware);
+```
+
+Make sure you remove the next entry from the callables chain. Best way to use it is: `$next = array_shift($callables)`, like in the example above.
+Don't forget the `return` of your `$next(...)` call, otherwise the `HttpServer` won't get any response object to work with.
+
+The added middlware will be executed the order you added them.
+
+```php
+$server = new HttpServer($socket, $callback);
+$server->addMiddleware($timeBlockingMiddleWare);
+$server->addMiddleware($geoBlockingMiddleWare);
+```
+In this example `$timeBlockingMiddleWare` will be called first and the `$geoBlockingMiddleWare` as second.
+The last part of the chain is the `callback` function.
 
 ## Install
 
