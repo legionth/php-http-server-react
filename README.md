@@ -104,8 +104,8 @@ For heavy calculations you should consider using promises. Not using them can sl
 ```php
 $callback = function (Request $request) {
     return new Promise(function ($resolve, $reject) use ($request) {
-        // Some heavy calculations
-        $resolve(new Response());
+        $response = heavyCalculationFunction();
+        $resolve($response);
     });
 };
 ```
