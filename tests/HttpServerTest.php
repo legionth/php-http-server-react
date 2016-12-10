@@ -5,6 +5,7 @@ use Legionth\React\Http\HttpServer;
 use RingCentral\Psr7\Response;
 use RingCentral\Psr7\Request;
 use React\Socket\Connection;
+use React\Promise\Promise;
 
 class HttpServerTest extends TestCase
 {
@@ -94,6 +95,60 @@ class HttpServerTest extends TestCase
 
         $socket = new Socket($this->loop);
         $server = new HttpServer($socket, $callback);
+        $socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testCallbackFunctionReturnsPromiseAndServerResponsesWithOkMessage()
+    {
+        $callback = function () {
+            return new Promise(function ($resolve, $reject) {
+                $resolve(new Response());
+            });
+        };
+
+        $request = "GET /ip HTTP/1.1\r\nHost: httpbin.org\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testPromiseReturnsInvalidValueAndServerResponsesWhithInternalErrorMessage()
+    {
+        $callback = function () {
+            return new Promise(function ($resolve, $reject) {
+                $resolve('Invalid');
+            });
+        };
+
+        $request = "GET /ip HTTP/1.1\r\nHost: httpbin.org\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testPromiseThrowsExceptionAndServerResponsesWithInternalServer()
+    {
+        $callback = function () {
+            return new Promise(function ($resolve, $reject) {
+                throw new Exception();
+            });
+        };
+
+        $request = "GET /ip HTTP/1.1\r\nHost: httpbin.org\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
         $socket->emit('connection', array($this->connection));
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 500 Internal Server Error\r\n\r\n"));
         $this->connection->emit('data', array($request));

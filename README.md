@@ -96,8 +96,24 @@ $httpServer = new HttpServer($socket, $callback);
 
 #### Return type of the callback function
 
-The return type of the callback function **must** be a response object.
-Other types aren't allowed and will lead to an 'HTTP 500 Internal Server Error' for the client.
+The return type of the callback function **must** be a [response object](https://packagist.org/packages/ringcentral/psr7) or
+a [promise](https://github.com/reactphp/promise).
+
+For heavy calculations you should consider using promises. Not using them can slow down the server.
+
+```php
+$callback = function (Request $request) {
+    return new Promise(function ($resolve, $reject) use ($request) {
+        $response = heavyCalculationFunction();
+        $resolve($response);
+    });
+};
+```
+Checkout the `examples` folder how to use promises in the callback function.
+
+The promise **must** return a response object anything else will lead to a 'HTTP 500 Internal Server Error' response for the client.
+
+Other types aren't allowed and will lead to a 'HTTP 500 Internal Server Error' response for the client.
 
 ## Install
 

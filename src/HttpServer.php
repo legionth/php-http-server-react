@@ -11,6 +11,7 @@ use RingCentral\Psr7\Request;
 use React\Socket\ConnectionInterface;
 use RingCentral;
 use React\Stream\ReadableStream;
+use React\Promise\Promise;
 
 class HttpServer extends EventEmitter
 {
@@ -120,17 +121,45 @@ class HttpServer extends EventEmitter
 
         try {
             $response = $callback($request);
-            if (!$response instanceof Response) {
-                throw new InvalidResponseTypeException('The returned type of callback function is invalid');
+
+            $promise = $response;
+            if (!$promise instanceof Promise) {
+                $promise = new Promise(function($resolve, $reject) use ($response){
+                    return $resolve($response);
+                });
             }
+
+            $this->handlePromise($connection, $promise);
         } catch (\Exception $exception) {
             $connection->write(RingCentral\Psr7\str(new Response(500)));
             $connection->end();
-            return;
         }
+    }
 
-        $connection->write(RingCentral\Psr7\str($response));
-        $connection->end();
+    /**
+     * Handles an promise
+     *
+     * @param Connection $connection - connection between server and client
+     * @param Promise $promise - Promise returned by the callback function of the server
+     */
+    private function handlePromise(Connection $connection, Promise $promise)
+    {
+        $promise->then(
+            function ($response) use ($connection, $promise){
+                $responseString = RingCentral\Psr7\str(new Response(500));
+
+                if ($response instanceof Response) {
+                    $responseString = RingCentral\Psr7\str($response);
+                }
+
+                $connection->write($responseString);
+                $connection->end();
+            },
+            function () use ($connection) {
+                $connection->write(RingCentral\Psr7\str(new Response(500)));
+                $connection->end();
+            }
+        );
     }
 
     /**
