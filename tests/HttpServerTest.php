@@ -158,7 +158,8 @@ class HttpServerTest extends TestCase
     public function testAddOneMiddleware()
     {
         $callback = function (RequestInterface $request) {
-            if (empty($request->getHeader('From'))) {
+            $headerArray = $request->getHeader('From');
+            if (empty($headerArray)) {
                 throw new Exception();
             }
 
@@ -187,8 +188,9 @@ class HttpServerTest extends TestCase
     public function testAddTwoMiddlwares()
     {
         $callback = function (RequestInterface $request) {
+            $headerArray = $request->getHeader('From');
             // Second middlware should remove the header added by the first middleware
-            if (empty($request->getHeader('From'))) {
+            if (empty($headerArray)) {
                 return new Response();
             }
             throw new Exception();
