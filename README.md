@@ -122,14 +122,14 @@ Other types aren't allowed and will lead to a 'HTTP 500 Internal Server Error' r
 #### Creating your own middleware
 
 You can create your own middleware, which lies between the server and the callback function. Use this middleware to manipulate the requests or
-responses of the server. You can add as many middlewar as you want you just need to follow the following design
+responses of the server. You can add as many middleware as you want you just need to follow the following design
 
 ```php
 $callback = function (RequestInterface $request) {
     return new Response();
 }
 
-$middleware = function (RequestInterface $request, callable callables) {
+$middleware = function (RequestInterface $request, array $callables) {
     // check or maninpulate the request object
     ...
     // fetch the next part of the callable chain und remove it from the array
