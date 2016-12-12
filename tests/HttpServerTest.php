@@ -166,11 +166,14 @@ class HttpServerTest extends TestCase
             return new Response();
         };
 
-        $middleware = function (RequestInterface $request, array $callables) {
+        $middleware = function (RequestInterface $request, $next) {
+            if (!is_callable($next)) {
+                throw new Exception();
+            }
+
             $request = $request->withAddedHeader('From', 'user@example.com');
 
-            $next = array_shift($callables);
-            return $next($request, $callables);
+            return $next($request);
         };
 
         $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
@@ -196,18 +199,24 @@ class HttpServerTest extends TestCase
             throw new Exception();
         };
 
-        $middleware = function (RequestInterface $request, array $callables) {
+        $middleware = function (RequestInterface $request, $next) {
+            if (!is_callable($next)) {
+                throw new Exception();
+            }
+
             $request = $request->withAddedHeader('From', 'user@example.com');
 
-            $next = array_shift($callables);
-            return $next($request, $callables);
+            return $next($request);
         };
 
-        $middlewareTwo = function (RequestInterface $request, array $callables) {
+        $middlewareTwo = function (RequestInterface $request, $next) {
+            if (!is_callable($next)) {
+                throw new Exception();
+            }
+
             $request = $request->withoutHeader('From');
 
-            $next = array_shift($callables);
-            return $next($request, $callables);
+            return $next($request);
         };
 
         $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
@@ -229,13 +238,16 @@ class HttpServerTest extends TestCase
             return new Response();
         };
 
-        $middleware = function (RequestInterface $request, array $callables) {
+        $middleware = function (RequestInterface $request, $next) {
+            if (!is_callable($next)) {
+                throw new Exception();
+            }
+
             $host = $request->getHeader('Host');
             if ($host[0] == "me.you") {
                 return new Response(400);
             }
-            $next = array_shift($callables);
-            return $next($request, $callables);
+            return $next($request);
         };
 
         $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";

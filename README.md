@@ -129,31 +129,37 @@ $callback = function (RequestInterface $request) {
     return new Response();
 }
 
-$middleware = function (RequestInterface $request, array $callables) {
+$middleware = function (RequestInterface $request, callable $next) {
     // check or maninpulate the request object
     ...
-    // fetch the next part of the callable chain und remove it from the array
-    $next = array_shift($callables);
-    // execute the next callable and return its value
-    return $next($request, $callables);
+    // call of next middleware chain link
+    return $next($request);
 }
 
 $server = new HttpServer($socket, $callback);
 $server->addMiddleware($middleware);
 ```
 
-Make sure you remove the next entry from the callables chain. Best way to use it is: `$next = array_shift($callables)`, like in the example above.
-Don't forget the `return` of your `$next(...)` call, otherwise the `HttpServer` won't get any response object to work with.
+Make sure you add the `return $next($request)` in your middleware code. Otherwise the client will receive a `500 Internal Server Error` message.
+The `return $next($request)` will call the next middleware or the user callback function, if it's the last part of this middleware chain.
 
-The added middlware will be executed the order you added them.
+The added middleware will be executed the order you added them.
 
 ```php
+...
+
+$timeBlockingMiddleware = function (RequestInterface $request, callable $next) {
+
+};
+
 $server = new HttpServer($socket, $callback);
 $server->addMiddleware($timeBlockingMiddleWare);
-$server->addMiddleware($geoBlockingMiddleWare);
+$server->addMiddleware($addedHeaderMiddleware);
 ```
-In this example `$timeBlockingMiddleWare` will be called first and the `$geoBlockingMiddleWare` as second.
+In this example `$timeBlockingMiddleWare` will be called first and the `$addedHeaderMiddleware` as second.
 The last part of the chain is the `callback` function.
+
+Checkout the `examples/middleware` how to add mutliple middleware.
 
 ## Install
 
