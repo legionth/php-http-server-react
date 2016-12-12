@@ -42,8 +42,12 @@ class HttpServer extends EventEmitter
         $this->middlewares = array();
     }
 
-    public function addMiddleware(callable $middleware)
+    public function addMiddleware($middleware)
     {
+        if (!is_callable($middleware)) {
+            throw new \InvalidArgumentException('The given parameter is not callable');
+        }
+
         $this->middlewares[] = $middleware;
     }
 
