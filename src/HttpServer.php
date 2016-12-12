@@ -134,7 +134,8 @@ class HttpServer extends EventEmitter
 
         try {
             $this->middlewares[] = $this->callback;
-            $response = $this->middlewares[0]($request, $this->middlewares);
+            $firstCallbackFunction = array_shift($this->middlewares);
+            $response = $firstCallbackFunction($request, $this->middlewares);
 
             $promise = $response;
             if (!$promise instanceof Promise) {
