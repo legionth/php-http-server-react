@@ -10,6 +10,8 @@ HTTP server written in PHP on top of ReactPHP.
  * [HeaderDecoder](#headerdecoder)
  * [Handling exceptions](#handling-exceptions)
  * [Return type of the callback function](#return-type-of-the-callback-function)
+ * [Middleware](#middleware)
+  * [Creating your own middleware](#creating-your-own-middleware)
 * [License](#license)
 
 ## Usage
@@ -114,6 +116,76 @@ Checkout the `examples` folder how to use promises in the callback function.
 The promise **must** return a response object anything else will lead to a 'HTTP 500 Internal Server Error' response for the client.
 
 Other types aren't allowed and will lead to a 'HTTP 500 Internal Server Error' response for the client.
+
+### Middleware
+
+#### Creating your own middleware
+
+You can create your own middleware. These middleware lies between the `HttpServer` and the user callback function. The `HttpServer` would
+call the callback function, if the response object is created. With an added middleware the `HttpServer` will call this middleware first.
+The next chain link would be another middleware or the callback function at the end. Every middleware has to return an response object.
+Otherwise the `HttpServer` will return a "500 Internal Server Error" message.
+The middleware can not only manipulate the request objects, but also the response objects returned by the other added middleware or the callback function.
+
+This is similiar to the conecept of [the fig standards](https://github.com/php-fig/fig-standards/blob/master/proposed/http-middleware/middleware-meta.md).
+
+Add as many middlewares as you want you just need to follow the following design
+
+```php
+$callback = function (RequestInterface $request) {
+    return new Response();
+}
+
+$middleware = function (RequestInterface $request, callable $next) {
+    // check or maninpulate the request object
+    ...
+    // call of next middleware chain link
+    return $next($request);
+}
+
+$server = new HttpServer($socket, $callback);
+$server->addMiddleware($middleware);
+```
+
+Make sure you add the `return $next($request)` in your middleware code. Otherwise the response of the last called middleware will be returned.
+The `return $next($request)` will call the next middleware or the user callback function, if it's the last part of this middleware chain.
+
+The added middleware will be executed the order you added them.
+
+```php
+...
+
+$timeBlockingMiddleware = function (RequestInterface $request, callable $next) {
+    // Will call the next middleware from 00:00 till 16:00
+    // otherwise an 403 Forbidden response will be sent to the client
+    if (((int)date('Hi') < 1600 && (int)date('Hi') > 0) {
+        return $next($request);
+    }
+    return new Response(403);
+};
+
+$addHeaderToRequest = function (RequestInterface $request, callable $next) {
+    $request = $request->withAddedHeader('Date', date('Y-m-d'));
+    return $next($request);
+};
+
+$addHeaderToResponse = function (RequestInterface $request, callable $next) {
+    $response = $next($request);
+    $response = $response->withAddedHeader('Age', '12');
+    return $response;
+};
+
+$server = new HttpServer($socket, $callback);
+$server->addMiddleware($timeBlockingMiddleware);
+$server->addMiddleware($addHeaderToRequest);
+$server->addMiddleware($addHeaderToResponse);
+```
+In this example `$timeBlockingMiddleWare` will be called first, the `$addHeaderToRequest` as second and `$addHeaderToResponse` as third .
+The last part of the chain is the `callback` function.
+
+This little example should show how you can use the middlwares e.g. to check or manipulate the requests/response objects.
+
+Checkout the `examples/middleware` how to add multiple middlewares.
 
 ## Install
 

@@ -12,12 +12,15 @@ use React\Socket\ConnectionInterface;
 use RingCentral;
 use React\Stream\ReadableStream;
 use React\Promise\Promise;
+use Legionth\React\Http\Middleware;
+use Psr\Http\Message\RequestInterface;
 
 class HttpServer extends EventEmitter
 {
 
     private $socket;
     private $callback;
+    private $middlewares;
 
     /**
      *
@@ -36,6 +39,17 @@ class HttpServer extends EventEmitter
             $this,
             'handleConnection'
         ));
+
+        $this->middlewares = array();
+    }
+
+    public function addMiddleware($middleware)
+    {
+        if (!is_callable($middleware)) {
+            throw new \InvalidArgumentException('The given parameter is not callable');
+        }
+
+        $this->middlewares[] = $middleware;
     }
 
     /**
@@ -120,7 +134,7 @@ class HttpServer extends EventEmitter
         $callback = $this->callback;
 
         try {
-            $response = $callback($request);
+            $response = $this->executeMiddlewareChain($this->middlewares, $request, $callback);
 
             $promise = $response;
             if (!$promise instanceof Promise) {
@@ -134,6 +148,34 @@ class HttpServer extends EventEmitter
             $connection->write(RingCentral\Psr7\str(new Response(500)));
             $connection->end();
         }
+    }
+
+    /**
+     * Executes the middlware chain and the callback function to receive the response object
+     *
+     * @param array $middlewareChain - middleware chain to execute
+     * @param RequestInterface $request - initial request from the client
+     * @param callable $callback - user callback function, last chain link
+     * @return Response returns the response object handled by different middlwares or only the callback function
+     */
+    private function executeMiddlewareChain(array $middlewareChain, RequestInterface $request, $callback)
+    {
+        $firstCallback = array_shift($middlewareChain);
+
+        $next = function (Request $request) use (&$middlewareChain, $callback, &$next) {
+            if (empty($middlewareChain)) {
+                return $callback($request);
+            }
+
+            $current = array_shift($middlewareChain);
+            return $current($request, $next);
+        };
+
+        if ($firstCallback === null) {
+            $firstCallback = $callback;
+        }
+
+        return $firstCallback($request, $next);
     }
 
     /**
