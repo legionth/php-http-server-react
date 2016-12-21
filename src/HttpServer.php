@@ -12,8 +12,9 @@ use React\Socket\ConnectionInterface;
 use RingCentral;
 use React\Stream\ReadableStream;
 use React\Promise\Promise;
-use Legionth\React\Http\Middleware;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use React\Stream\ReadableStreamInterface;
 
 class HttpServer extends EventEmitter
 {
@@ -189,11 +190,23 @@ class HttpServer extends EventEmitter
         $promise->then(
             function ($response) use ($connection, $promise){
                 $responseString = RingCentral\Psr7\str(new Response(500));
-
                 if ($response instanceof Response) {
+                    $body = $response->getBody();
+                    if ($body instanceof ReadableStreamInterface) {
+                        $headerResponse = new Response(
+                            $response->getStatusCode(),
+                            $response->getHeaders(),
+                            null,
+                            $response->getProtocolVersion(),
+                            $response->getReasonPhrase()
+                        );
+
+                        $connection->write(RingCentral\Psr7\str($headerResponse));
+                        $body->pipe($connection);
+                        return;
+                    }
                     $responseString = RingCentral\Psr7\str($response);
                 }
-
                 $connection->write($responseString);
                 $connection->end();
             },
