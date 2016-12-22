@@ -169,7 +169,6 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
      */
     public function getContents()
     {
-        echo "test";
         return '';
     }
 
