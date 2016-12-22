@@ -7,6 +7,8 @@ use RingCentral\Psr7\Request;
 use React\Socket\Connection;
 use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
+use Legionth\React\Http\HttpBodyStream;
+use React\Stream\ReadableStream;
 
 class HttpServerTest extends TestCase
 {
@@ -260,5 +262,35 @@ class HttpServerTest extends TestCase
 
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
         $this->connection->emit('data', array($request));
+    }
+
+    public function testStreamHttpBodyOnConnection()
+    {
+        $input = new ReadableStream();
+
+        $callback = function (RequestInterface $request) use ($input) {
+            $body = new HttpBodyStream($input);
+            return new Response(200, array('Content-Length' => '5'), $body);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->exactly(4))->method('write')->withConsecutive(
+                array($this->equalTo("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n")),
+                array($this->equalTo('*')),
+                array($this->equalTo('*')),
+                array($this->equalTo('*'))
+
+        );
+        $this->connection->emit('data', array($request));
+
+        for ($i = 0; $i < 3; $i++) {
+            $input->emit('data', array('*'));
+        }
     }
 }
