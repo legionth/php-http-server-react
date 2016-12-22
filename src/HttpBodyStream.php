@@ -223,7 +223,7 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
      *
      * @see \React\Stream\ReadableStreamInterface::pipe()
      */
-    public function pipe(WritableStreamInterface $dest, array $options = [])
+    public function pipe(WritableStreamInterface $dest, array $options = array())
     {
         Util::pipe($this, $dest, $options);
 
