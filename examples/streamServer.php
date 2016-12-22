@@ -6,6 +6,7 @@ use React\Socket\Server as Socket;
 use RingCentral\Psr7\Response;
 use Psr\Http\Message\RequestInterface;
 use React\Stream\ReadableStream;
+use Legionth\React\Http\ChunkedEncoderStream;
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -13,16 +14,16 @@ require __DIR__ . '/../vendor/autoload.php';
 $loop = React\EventLoop\Factory::create();
 
 $callback = function(RequestInterface $request) use ($loop){
-    $input = new ReadableStream();
+    $stream = new ReadableStream();
+    $input = new ChunkedEncoderStream($stream);
 
-    $periodicTimer = $loop->addPeriodicTimer(0.5, function () use ($input) {
-        $input->emit('data', array("6\r\nworld\n\r\n"));
+    $periodicTimer = $loop->addPeriodicTimer(0.5, function () use ($stream) {
+        $stream->emit('data', array("world\n"));
     });
 
-    $loop->addTimer(3, function () use ($input, $periodicTimer) {
+    $loop->addTimer(3, function () use ($stream, $periodicTimer) {
         $periodicTimer->cancel();
-        $input->emit('data', array("3\r\nend\r\n0\r\n\r\n"));
-        $input->emit('end');
+        $stream->emit('end', array('end'));
     });
 
     $body = new HttpBodyStream($input);
@@ -30,8 +31,7 @@ $callback = function(RequestInterface $request) use ($loop){
     return new Response(
         200,
         array(
-            'Transfer-Encoding' => 'chunked',
-            'Connection' => 'keep-alive'
+            'Transfer-Encoding' => 'chunked'
         ),
         $body);
 };
