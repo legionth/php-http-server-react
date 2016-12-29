@@ -193,13 +193,8 @@ class HttpServer extends EventEmitter
                 if ($response instanceof Response) {
                     $body = $response->getBody();
                     if ($body instanceof ReadableStreamInterface) {
-                        $headerResponse = new Response(
-                            $response->getStatusCode(),
-                            $response->getHeaders(),
-                            null,
-                            $response->getProtocolVersion(),
-                            $response->getReasonPhrase()
-                        );
+                        $emptyBody =RingCentral\Psr7\stream_for('');
+                        $headerResponse = $response->withBody($emptyBody);
 
                         $connection->write(RingCentral\Psr7\str($headerResponse));
                         $body->pipe($connection);
