@@ -22,18 +22,27 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
         $this->input->on('close', array($this, 'close'));
     }
 
+    /**
+     * @internal
+     */
     public function handleData($data)
     {
         $completeChunk = $this->createChunk($data);
         $this->emit('data', array($completeChunk));
     }
 
+    /**
+     * @internal
+     */
     public function handleError(\Exception $e)
     {
         $this->emit('error', array($e));
         $this->close();
     }
 
+    /**
+     * @internal
+     */
     public function handleEnd($data = null)
     {
         if ($data != null) {
@@ -49,6 +58,11 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
         }
     }
 
+    /**
+     * @param string $data - string to be transformed in an valid
+     *                       HTTP encoded chunk string
+     * @return string
+     */
     private function createChunk($data)
     {
         $byteSize = strlen($data);

@@ -23,17 +23,26 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
         $this->input->on('close', array($this, 'close'));
     }
 
+    /**
+     * @internal
+     */
     public function handleData($data)
     {
         $this->emit('data', array($data));
     }
 
+    /**
+     * @internal
+     */
     public function handleError(\Exception $e)
     {
         $this->emit('error', array($e));
         $this->close();
     }
 
+    /**
+     * @internal
+     */
     public function handleEnd()
     {
         if (!$this->closed) {
