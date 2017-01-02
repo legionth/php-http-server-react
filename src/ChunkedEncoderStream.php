@@ -50,13 +50,8 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
      * @param string $data - data that should be written on the stream,
      *                       before it closes
      */
-    public function handleEnd($data = null)
+    public function handleEnd()
     {
-        if ($data != null) {
-            $completeChunk = $this->createChunk($data);
-            $this->emit('data', array($completeChunk));
-        }
-
         $this->emit('data', array("0\r\n\r\n"));
 
         if (!$this->closed) {
@@ -72,14 +67,10 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
      */
     private function createChunk($data)
     {
-        if (is_string($data)) {
-            $byteSize = strlen($data);
-            $chunkBeginning = $byteSize . "\r\n";
+        $byteSize = strlen($data);
+        $chunkBeginning = $byteSize . "\r\n";
 
-            return $chunkBeginning . $data . "\r\n";
-        }
-
-        return '';
+        return $chunkBeginning . $data . "\r\n";
     }
 
     public function isReadable()
@@ -116,6 +107,7 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
 
         $this->emit('end', array());
         $this->emit('close', array());
+
         $this->removeAllListeners();
     }
 }
