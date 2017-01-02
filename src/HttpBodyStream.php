@@ -71,12 +71,12 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
 
     public function tell()
     {
-        return;
+        throw new \BadMethodCallException();
     }
 
     public function eof()
     {
-        return;
+        throw new \BadMethodCallException();
     }
 
     public function isSeekable()
@@ -101,12 +101,12 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
 
     public function write($string)
     {
-        return;
+        throw new \BadMethodCallException();
     }
 
     public function read($length)
     {
-        // TODO: Auto-generated method stub
+        throw new \BadMethodCallException();
     }
 
     public function getContents()
@@ -116,7 +116,7 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
 
     public function getMetadata($key = null)
     {
-        // TODO: Auto-generated method stub
+        return array();
     }
 
     public function isReadable()

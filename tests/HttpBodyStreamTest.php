@@ -85,11 +85,17 @@ class HttpBodyStreamTest extends TestCase
         $this->assertEquals(0, $this->bodyStream->getSize());
     }
 
+    /**
+     * @expectedException BadMethodCallException
+     */
     public function testTell()
     {
         $this->bodyStream->tell();
     }
 
+    /**
+     * @expectedException BadMethodCallException
+     */
     public function testEof()
     {
         $this->bodyStream->eof();
@@ -100,11 +106,17 @@ class HttpBodyStreamTest extends TestCase
         $this->assertFalse($this->bodyStream->isSeekable());
     }
 
+    /**
+     * @expectedException BadMethodCallException
+     */
     public function testWrite()
     {
         $this->bodyStream->write('');
     }
 
+    /**
+     * @expectedException BadMethodCallException
+     */
     public function testRead()
     {
         $this->bodyStream->read('');
@@ -117,7 +129,7 @@ class HttpBodyStreamTest extends TestCase
 
     public function testGetMetaData()
     {
-        $this->assertEquals('', $this->bodyStream->getMetadata());
+        $this->assertEquals(array(), $this->bodyStream->getMetadata());
     }
 
     public function testIsReadable()
