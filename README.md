@@ -193,28 +193,22 @@ Checkout the `examples/middleware` how to add multiple middlewares.
 If you have operations that need time to be computed(of course non-blocking ;-)), you can stream the intermediary results directly to the client,
 without buffering on your side.
 
-Use an instance of the `HttpBodyStream` and use this instance as the body for `Response` object you want to return.
+Use the `StreamedResponse` object as return of you callback function to stream body data.
 
 ```php
 $callback = function (RequestInterface $request) {
-    $input = new ReadableStream();
-    $body = new HttpBodyStream($input);
+    $stream = new ReadableStream();
     
     // your computation
-    // emit via `$input`
+    // emit via `$stream`
     
-    return new Response(
-        200,
-        array(
-            'Transfer-Encoding' => 'chunked',
-            'Connection' => 'keep-alive'
-        ),
-        $body
+    return new StreamedResponse(
+        $stream
     );
 }
 ```
 
-The `HttpServer` will use the emitted data from the `ReadableStream` to send this data directly to the client.
+The `HttpServer` will use the emitted data from the `ReadableStream` to send this as chunked encoded data directly to the client.
 
 Check out the `examples` folder how your computation could look like.
 
