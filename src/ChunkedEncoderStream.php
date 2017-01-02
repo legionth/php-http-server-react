@@ -10,7 +10,6 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
 {
     private $input;
     private $closed;
-    private $closing = false;
 
     public function __construct(ReadableStreamInterface $input)
     {
@@ -27,7 +26,10 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
      */
     public function handleData($data)
     {
-        $completeChunk = $this->createChunk($data);
+        if (is_string($data)) {
+            $completeChunk = $this->createChunk($data);
+        }
+
         $this->emit('data', array($completeChunk));
     }
 
@@ -45,7 +47,7 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
      */
     public function handleEnd($data = null)
     {
-        if ($data != null) {
+        if ($data != null && is_string($data)) {
             $completeChunk = $this->createChunk($data);
             $this->emit('data', array($completeChunk));
         }
@@ -126,11 +128,11 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
      */
     public function close()
     {
-        if ($this->closing) {
+        if ($this->closed) {
             return;
         }
 
-        $this->closing = false;
+        $this->closed = true;
 
         $this->readable = false;
 

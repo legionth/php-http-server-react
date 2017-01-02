@@ -10,8 +10,7 @@ use React\Stream\Util;
 class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableStreamInterface
 {
     private $input;
-    private $closed;
-    private $closing = false;
+    private $closed = false;
 
     public function __construct(ReadableStreamInterface $input)
     {
@@ -247,11 +246,11 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
      */
     public function close()
     {
-        if ($this->closing) {
+        if ($this->closed) {
             return;
         }
 
-        $this->closing = false;
+        $this->closed = true;
 
         $this->readable = false;
 

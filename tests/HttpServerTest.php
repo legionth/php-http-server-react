@@ -9,6 +9,7 @@ use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
 use Legionth\React\Http\HttpBodyStream;
 use React\Stream\ReadableStream;
+use Legionth\React\Http\ChunkedEncoderStream;
 
 class HttpServerTest extends TestCase
 {
@@ -292,5 +293,44 @@ class HttpServerTest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             $input->emit('data', array('*'));
         }
+    }
+
+    public function testStreamedServerData()
+    {
+        $stream = new ReadableStream();
+
+        $callback = function(RequestInterface $request) use ($stream){
+            $input = new ChunkedEncoderStream($stream);
+
+            $stream->emit('data', array("world\n"));
+            $stream->emit('end', array('end'));
+
+            $body = new HttpBodyStream($input);
+
+            return new Response(
+                200,
+                array(
+                    'Transfer-Encoding' => 'chunked'
+                ),
+                $body);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->method('write')->withConsecutive(
+            array($this->equalTo("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")),
+            array($this->equalTo("6\r\nworld\n\r\n")),
+            array($this->equalTo("3\r\nend\r\n")),
+            array($this->equalTo("0\r\n\r\n"))
+        );
+
+
+        $this->connection->emit('data', array($request));
+
     }
 }
