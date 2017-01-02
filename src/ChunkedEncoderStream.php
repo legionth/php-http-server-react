@@ -6,6 +6,9 @@ use React\Stream\ReadableStreamInterface;
 use React\Stream\WritableStreamInterface;
 use React\Stream\Util;
 
+/**
+ * Stream incoming strings as a HTTP chunked encoded string
+ */
 class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterface
 {
     private $input;
@@ -22,19 +25,19 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
     }
 
     /**
-     * @internal
+     * Will emit the given string in a chunked encoded string
+     * @param string $data - string to be tranfsformed into an HTTP chunked encoded string
      */
     public function handleData($data)
     {
-        if (is_string($data)) {
-            $completeChunk = $this->createChunk($data);
-        }
+        $completeChunk = $this->createChunk($data);
 
         $this->emit('data', array($completeChunk));
     }
 
     /**
-     * @internal
+     * Handles the an occuring exception on the stream
+     * @param \Exception $e
      */
     public function handleError(\Exception $e)
     {
@@ -43,11 +46,13 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
     }
 
     /**
-     * @internal
+     * Ends the stream
+     * @param string $data - data that should be written on the stream,
+     *                       before it closes
      */
     public function handleEnd($data = null)
     {
-        if ($data != null && is_string($data)) {
+        if ($data != null) {
             $completeChunk = $this->createChunk($data);
             $this->emit('data', array($completeChunk));
         }
@@ -67,52 +72,31 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
      */
     private function createChunk($data)
     {
-        $byteSize = strlen($data);
-        $chunkBeginning = $byteSize . "\r\n";
+        if (is_string($data)) {
+            $byteSize = strlen($data);
+            $chunkBeginning = $byteSize . "\r\n";
 
-        return $chunkBeginning . $data . "\r\n";
+            return $chunkBeginning . $data . "\r\n";
+        }
+
+        return '';
     }
-
-    /**
-     *
-     * {@inheritdoc}
-     *
-     * @see \React\Stream\ReadableStreamInterface::isReadable()
-     */
 
     public function isReadable()
     {
         return !$this->closed && $this->input->isReadable();
     }
 
-    /**
-     *
-     * {@inheritdoc}
-     *
-     * @see \React\Stream\ReadableStreamInterface::pause()
-     */
     public function pause()
     {
         $this->input->pause();
     }
 
-    /**
-     *
-     * {@inheritdoc}
-     *
-     * @see \React\Stream\ReadableStreamInterface::resume()
-     */
     public function resume()
     {
         $this->input->resume();
     }
 
-    /**
-     *
-     * {@inheritdoc}
-     *
-     * @see \React\Stream\ReadableStreamInterface::pipe()
-     */
     public function pipe(WritableStreamInterface $dest, array $options = array())
     {
         Util::pipe($this, $dest, $options);
@@ -120,12 +104,6 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
         return $dest;
     }
 
-    /**
-     *
-     * {@inheritdoc}
-     *
-     * @see \React\Stream\ReadableStreamInterface::close()
-     */
     public function close()
     {
         if ($this->closed) {
@@ -136,8 +114,8 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
 
         $this->readable = false;
 
-        $this->emit('end', array($this));
-        $this->emit('close', array($this));
+        $this->emit('end', array());
+        $this->emit('close', array());
         $this->removeAllListeners();
     }
 }

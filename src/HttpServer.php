@@ -193,7 +193,9 @@ class HttpServer extends EventEmitter
                 if ($response instanceof Response) {
                     $body = $response->getBody();
                     if ($body instanceof ReadableStreamInterface) {
-                        $emptyBody =RingCentral\Psr7\stream_for('');
+                        // Send the header first without the body, 
+                        // the body will be streamed
+                        $emptyBody = RingCentral\Psr7\stream_for('');
                         $headerResponse = $response->withBody($emptyBody);
 
                         $connection->write(RingCentral\Psr7\str($headerResponse));

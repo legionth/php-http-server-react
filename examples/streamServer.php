@@ -10,7 +10,6 @@ use Legionth\React\Http\ChunkedEncoderStream;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-
 $loop = React\EventLoop\Factory::create();
 
 $callback = function(RequestInterface $request) use ($loop){
@@ -33,7 +32,8 @@ $callback = function(RequestInterface $request) use ($loop){
         array(
             'Transfer-Encoding' => 'chunked'
         ),
-        $body);
+        $body
+    );
 };
 
 $socket = new Socket($loop);
