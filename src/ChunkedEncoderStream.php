@@ -7,7 +7,7 @@ use React\Stream\WritableStreamInterface;
 use React\Stream\Util;
 
 /**
- * Stream incoming strings as a HTTP chunked encoded string
+ * Wraps any readable stream which will emit the data as HTTP chunks
  */
 class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterface
 {

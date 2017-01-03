@@ -10,6 +10,9 @@ use React\Stream\Util;
 /**
  * Uses a StreamInterface from PSR-7 and a ReadableStreamInterface from ReactPHP
  * to use PSR-7 objects and use ReactPHP streams
+ * This is class is used in `HttpServer` to stream the body of a response
+ * to the client. Because of this you can stream big amount of data without
+ * necessity of buffering this data. The data will be send directly to the client.
  */
 class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableStreamInterface
 {
@@ -17,6 +20,17 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
     private $closed = false;
     private $encoder;
 
+    /**
+     * @param ReadableStreamInterface $input - The data from this stream will be forwarded
+     *                                         to the $encoder. The $encoder can be commited
+     *                                         via the second parameter of this constructor
+     * @param ReadableStreamInterface $encoder - This is a optional parameter which
+     *                                           can be an encoding stream. This encoder
+     *                                           will encode the data of $input. The
+     *                                           default is a `ChunkedEncoderStream`
+     *                                           which will encode the incoming data of
+     *                                           $input as HTTP chunks.
+     */
     public function __construct(ReadableStreamInterface $input, ReadableStreamInterface $encoder = null)
     {
         $this->input = $input;

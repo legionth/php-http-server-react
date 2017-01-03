@@ -217,6 +217,8 @@ You can add an the optional encoder as second parameter of the constructor of th
 encoder which will send HTTP encoded chunks to the client.
 The `HttpServer` will automaticly add a 'Transfer-Encoding: chunked' line to your header, if you use the `HttpBodyStream` with the default `ChunkedEncoderStream`.
 
+The advantage of streaming data is that big amount of data doesn't need to be saved temporarily, because it will be send directly to the client.
+
 Check out the `examples` folder how your computation could look like.
 
 ## Install
