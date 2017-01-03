@@ -58,8 +58,11 @@ $middlewareAddLanguageHeader = function (RequestInterface $request, callable $ne
 };
 
 $middlewareAddDateHeaderToResponse = function (RequestInterface $request, callable $next) {
-    $response = $next($request);
-    $response = $response->withAddedHeader('Date', date('Y-m-d'));
+    $promise = $next($request);
+    $response = $promise->then(function($response) {
+        return $response->withAddedHeader('Date', date('Y-m-d'));
+    });
+
     return $response;
 };
 

@@ -165,11 +165,19 @@ class HttpServer extends EventEmitter
 
         $next = function (Request $request) use (&$middlewareChain, $callback, &$next) {
             if (empty($middlewareChain)) {
-                return $callback($request);
+                $promise = new Promise(function($resolve, $reject) use ($callback, $request){
+                    $resolve($callback($request));
+                });
+                return $promise;
             }
 
             $current = array_shift($middlewareChain);
-            return $current($request, $next);
+
+            $promise = new Promise(function($resolve, $reject) use ($current, $next, $request){
+                $resolve($current($request, $next));
+            });
+
+            return $promise;
         };
 
         if ($firstCallback === null) {
