@@ -205,16 +205,17 @@ $callback = function (RequestInterface $request) {
     
     return new Response(
         200,
-        array(
-            'Transfer-Encoding' => 'chunked',
-            'Connection' => 'keep-alive'
-        ),
+        array(),
         $body
     );
 }
 ```
 
 The `HttpServer` will use the emitted data from the `ReadableStream` to send this data directly to the client.
+
+You can add an the optional encoder as second parameter of the constructor of the `HttpBodyStream`. If none is set the default will the be`ChunkedEncoderStream` an 
+encoder which will send HTTP encoded chunks to the client.
+The `HttpServer` will automaticly add a 'Transfer-Encoding: chunked' line to your header, if you use the `HttpBodyStream` with the default `ChunkedEncoderStream`.
 
 Check out the `examples` folder how your computation could look like.
 
