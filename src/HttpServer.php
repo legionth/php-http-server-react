@@ -180,20 +180,25 @@ class HttpServer extends EventEmitter
     }
 
     /**
-     * Handles an promise
+     * Handles a promise
      *
      * @param Connection $connection - connection between server and client
      * @param Promise $promise - Promise returned by the callback function of the server
      */
     private function handlePromise(Connection $connection, Promise $promise)
     {
+        $that = $this;
         $promise->then(
-            function ($response) use ($connection, $promise){
+            function ($response) use ($connection, $promise, $that){
                 $responseString = RingCentral\Psr7\str(new Response(500));
                 if ($response instanceof Response) {
                     $body = $response->getBody();
                     if ($body instanceof ReadableStreamInterface) {
-                        // Send the header first without the body, 
+                        if ($that->hasChunkedEncoderStream($body)) {
+                            $header = $that->addChunkEncodingHeader($response->getHeader('Transfer-Encoding'));
+                            $response = $response->withHeader('Transfer-Encoding', $header);
+                        }
+                        // Send the header first without the body,
                         // the body will be streamed
                         $emptyBody = RingCentral\Psr7\stream_for('');
                         $headerResponse = $response->withBody($emptyBody);
@@ -214,6 +219,38 @@ class HttpServer extends EventEmitter
         );
     }
 
+    /**
+     * Check if a ChunkEncoderStream is setted as encoder in the bodey stream
+     * @param ReadableStreamInterface $body - body to be checked for chunked encoding
+     * @return boolean
+     */
+    public function hasChunkedEncoderStream($body)
+    {
+        if ($body instanceof HttpBodyStream) {
+           if ($body->getEncoder() instanceof ChunkedEncoderStream) {
+                return true;
+           }
+        }
+        return false;
+    }
+
+    /**
+     * Adds a 'chunked' to 'Transfer-Encoding' if missing
+     * @param array $transferEncodingHeader - array of current 'Transfer-Encoding' values
+     * @return array
+     */
+    public function addChunkEncodingHeader($transferEncodingHeader)
+    {
+        if (empty($transferEncodingHeader)) {
+            $transferEncodingHeader[] = 'chunked';
+        } else {
+            if (!in_array('chunked', $transferEncodingHeader)) {
+                $transferEncodingHeader[] = 'chunked';
+            }
+        }
+
+        return $transferEncodingHeader;
+    }
     /**
      * Adds the body to the request before handling the request
      *

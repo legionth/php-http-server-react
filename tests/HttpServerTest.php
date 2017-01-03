@@ -33,7 +33,20 @@ class HttpServerTest extends TestCase
             $callback
         );
 
-        $this->connection = $this->getMockBuilder('React\Socket\Connection')->disableOriginalConstructor()->setMethods(array('write', 'end', 'close', 'pause', 'resume', 'isReadable', 'isWritable'))->getMock();
+        $this->connection = $this->getMockBuilder('React\Socket\Connection')
+            ->disableOriginalConstructor()
+            ->setMethods(
+                array(
+                    'write',
+                    'end',
+                    'close',
+                    'pause',
+                    'resume',
+                    'isReadable',
+                    'isWritable'
+                )
+            )
+            ->getMock();
     }
 
     /**
@@ -265,47 +278,12 @@ class HttpServerTest extends TestCase
         $this->connection->emit('data', array($request));
     }
 
-    public function testStreamHttpBodyOnConnection()
+    public function testChunkedEncodingIsSetted()
     {
-        $input = new ReadableStream();
+        $callback = function(RequestInterface $request) {
+            $stream = new ReadableStream();
 
-        $callback = function (RequestInterface $request) use ($input) {
-            $body = new HttpBodyStream($input);
-            return new Response(200, array('Content-Length' => '5'), $body);
-        };
-
-        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
-
-        $socket = new Socket($this->loop);
-        $server = new HttpServer($socket, $callback);
-
-        $socket->emit('connection', array($this->connection));
-
-        $this->connection->expects($this->exactly(4))->method('write')->withConsecutive(
-                array($this->equalTo("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n")),
-                array($this->equalTo('*')),
-                array($this->equalTo('*')),
-                array($this->equalTo('*'))
-
-        );
-        $this->connection->emit('data', array($request));
-
-        for ($i = 0; $i < 3; $i++) {
-            $input->emit('data', array('*'));
-        }
-    }
-
-    public function testStreamedServerData()
-    {
-        $stream = new ReadableStream();
-
-        $callback = function(RequestInterface $request) use ($stream){
-            $input = new ChunkedEncoderStream($stream);
-
-            $stream->emit('data', array("world\n"));
-            $stream->emit('end', array('end'));
-
-            $body = new HttpBodyStream($input);
+            $body = new HttpBodyStream($stream);
 
             return new Response(
                 200,
@@ -322,15 +300,83 @@ class HttpServerTest extends TestCase
 
         $socket->emit('connection', array($this->connection));
 
-        $this->connection->method('write')->withConsecutive(
-            array($this->equalTo("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")),
-            array($this->equalTo("6\r\nworld\n\r\n")),
-            array($this->equalTo("3\r\nend\r\n")),
-            array($this->equalTo("0\r\n\r\n"))
-        );
-
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"));
 
         $this->connection->emit('data', array($request));
+    }
 
+    public function testStreamDataNoChunkedEncodingSetted()
+    {
+        $callback = function(RequestInterface $request) {
+            $stream = new ReadableStream();
+
+            $body = new HttpBodyStream($stream);
+
+            return new Response(
+                200,
+                array(),
+                $body);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testTwoTypesOfEncodingForStreaming()
+    {
+        $callback = function(RequestInterface $request) {
+            $stream = new ReadableStream();
+
+            $body = new HttpBodyStream($stream);
+
+            return new Response(
+                200,
+                array('Transfer-Encoding' => 'another'),
+                $body);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nTransfer-Encoding: another, chunked\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testAnotherEncoderForStreaming()
+    {
+        $callback = function(RequestInterface $request) {
+            $stream = new ReadableStream();
+
+            $body = new HttpBodyStream($stream, new ReadableStream());
+
+            return new Response(
+                200,
+                array(),
+                $body);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
     }
 }

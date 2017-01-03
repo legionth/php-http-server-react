@@ -14,7 +14,6 @@ $loop = React\EventLoop\Factory::create();
 
 $callback = function(RequestInterface $request) use ($loop){
     $stream = new ReadableStream();
-    $input = new ChunkedEncoderStream($stream);
 
     $periodicTimer = $loop->addPeriodicTimer(0.5, function () use ($stream) {
         $stream->emit('data', array("world\n"));
@@ -25,13 +24,11 @@ $callback = function(RequestInterface $request) use ($loop){
         $stream->emit('end', array('end'));
     });
 
-    $body = new HttpBodyStream($input);
+    $body = new HttpBodyStream($stream);
 
     return new Response(
         200,
-        array(
-            'Transfer-Encoding' => 'chunked'
-        ),
+        array(),
         $body
     );
 };

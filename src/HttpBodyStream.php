@@ -15,15 +15,26 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
 {
     private $input;
     private $closed = false;
+    private $encoder;
 
-    public function __construct(ReadableStreamInterface $input)
+    public function __construct(ReadableStreamInterface $input, ReadableStreamInterface $encoder = null)
     {
         $this->input = $input;
 
-        $this->input->on('data', array($this, 'handleData'));
-        $this->input->on('end', array($this, 'handleEnd'));
-        $this->input->on('error', array($this, 'handleError'));
-        $this->input->on('close', array($this, 'close'));
+        if ($encoder === null) {
+            $encoder = new ChunkedEncoderStream($this->input);
+        }
+        $this->encoder = $encoder;
+
+        $this->encoder->on('data', array($this, 'handleData'));
+        $this->encoder->on('end', array($this, 'handleEnd'));
+        $this->encoder->on('error', array($this, 'handleError'));
+        $this->encoder->on('close', array($this, 'close'));
+    }
+
+    public function getEncoder()
+    {
+        return $this->encoder;
     }
 
     /**
