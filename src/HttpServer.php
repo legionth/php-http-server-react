@@ -13,8 +13,8 @@ use RingCentral;
 use React\Stream\ReadableStream;
 use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 use React\Stream\ReadableStreamInterface;
+use Psr\Http\Message\StreamInterface;
 
 class HttpServer extends EventEmitter
 {
@@ -62,16 +62,20 @@ class HttpServer extends EventEmitter
     {
         $bodyBuffer = '';
         $headerCompleted = false;
-        $bodyCompleted = false;
         $that = $this;
 
         $chunkStream = new ReadableStream();
         $chunkedDecoder = new ChunkedDecoder($chunkStream);
 
+        $bodyStream = new HttpBodyStream($chunkedDecoder);
+
         $headerStream = new ReadableStream();
         $headerDecoder = new HeaderDecoder($headerStream);
 
-        $connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream) {
+        $request = null;
+        $headerSend = false;
+
+        $connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream, &$request, &$bodyStream, &$headerSend) {
             if (!$headerCompleted) {
                 $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
                     $request = RingCentral\Psr7\parse_request($header);
@@ -83,19 +87,20 @@ class HttpServer extends EventEmitter
 
             if (isset($request)) {
                 if ($that->isChunkedEncodingActive($request)) {
-                    $chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $that, $connection) {
-                        $bodyBuffer .= $chunk;
-                        if (strlen($chunk) == 0) {
-                            $that->sendBody($bodyBuffer, $connection, $request);
-                        }
-                    });
+                    if (!$headerSend) {
+                        // Send header without body to stream the data
+                        $that->sendBody($bodyStream, $connection, $request);
+                        $headerSend = true;
+                    }
+
                     $chunkStream->emit('data', array($data));
                 } else {
                     $bodyBuffer .= $data;
                     $contentLengthArray = $request->getHeader('Content-Length');
 
                     if (!empty($contentLengthArray) && strlen($bodyBuffer) == $contentLengthArray[0]) {
-                        $that->sendBody($bodyBuffer, $connection, $request);
+                        $stringBodyStream = RingCentral\Psr7\stream_for($bodyBuffer);
+                        $that->sendBody($stringBodyStream, $connection, $request);
                     } else if (empty($contentLengthArray) || $contentLengthArray[0] == 0) {
                         $that->handleRequest($connection, $request);
                     }
@@ -222,13 +227,13 @@ class HttpServer extends EventEmitter
     /**
      * Adds the body to the request before handling the request
      *
-     * @param string $body - body to be added to the request object
+     * @param StreamInterface $body - body to be added to the request object
      * @param ConnectionInterface $connection - client-server connection
      * @param Request $request - Adds the body to this request object
      */
-    public function sendBody($body, ConnectionInterface $connection, Request $request)
+    public function sendBody(StreamInterface $body, ConnectionInterface $connection, Request $request)
     {
-        $request = $request->withBody(RingCentral\Psr7\stream_for($body));
+        $request = $request->withBody($body);
         $this->handleRequest($connection, $request);
     }
 }
