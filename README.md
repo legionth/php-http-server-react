@@ -212,12 +212,9 @@ $callback = function (RequestInterface $request) {
 ```
 
 The `HttpServer` will use the emitted data from the `ReadableStream` to send this data directly to the client.
+If you use the `HttpBodyStream` the whole communication to the client will be HTTP chunk encoded, other values set for `Transfer-Encoding` will be ignored.
 
-You can add an the optional encoder as second parameter of the constructor of the `HttpBodyStream`. If none is set the default will the be`ChunkedEncoderStream` an 
-encoder which will send HTTP encoded chunks to the client.
-The `HttpServer` will automaticly add a 'Transfer-Encoding: chunked' line to your header, if you use the `HttpBodyStream` with the default `ChunkedEncoderStream`.
-
-The advantage of streaming data is that big amount of data doesn't need to be saved temporarily, because it will be send directly to the client.
+Big amount of data can easily be handled and doesn't need to be saved temporarily, because it will be send directly to the client.
 
 Check out the `examples` folder how your computation could look like.
 

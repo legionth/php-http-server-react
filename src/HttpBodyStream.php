@@ -21,29 +21,16 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
     private $encoder;
 
     /**
-     * @param ReadableStreamInterface $input - The data from this stream will be forwarded
-     *                                         to the $encoder. The $encoder can be commited
-     *                                         via the second parameter of this constructor
-     * @param ReadableStreamInterface $encoder - This is a optional parameter which
-     *                                           can be an encoding stream. This encoder
-     *                                           will encode the data of $input. The
-     *                                           default is a `ChunkedEncoderStream`
-     *                                           which will encode the incoming data of
-     *                                           $input as HTTP chunks.
+     * @param ReadableStreamInterface $input - Stream data from $stream as a body of a PSR-7 object
      */
-    public function __construct(ReadableStreamInterface $input, ReadableStreamInterface $encoder = null)
+    public function __construct(ReadableStreamInterface $input)
     {
         $this->input = $input;
 
-        if ($encoder === null) {
-            $encoder = new ChunkedEncoderStream($this->input);
-        }
-        $this->encoder = $encoder;
-
-        $this->encoder->on('data', array($this, 'handleData'));
-        $this->encoder->on('end', array($this, 'handleEnd'));
-        $this->encoder->on('error', array($this, 'handleError'));
-        $this->encoder->on('close', array($this, 'close'));
+        $this->input->on('data', array($this, 'handleData'));
+        $this->input->on('end', array($this, 'handleEnd'));
+        $this->input->on('error', array($this, 'handleError'));
+        $this->input->on('close', array($this, 'close'));
     }
 
     public function getEncoder()
@@ -87,7 +74,9 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
     }
 
     public function detach()
-    {}
+    {
+        throw new \BadMethodCallException();
+    }
 
     public function getSize()
     {
