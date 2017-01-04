@@ -68,71 +68,6 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
         }
     }
 
-    public function __toString()
-    {
-        return '';
-    }
-
-    public function detach()
-    {
-        throw new \BadMethodCallException();
-    }
-
-    public function getSize()
-    {
-        return 0;
-    }
-
-    public function tell()
-    {
-        throw new \BadMethodCallException();
-    }
-
-    public function eof()
-    {
-        throw new \BadMethodCallException();
-    }
-
-    public function isSeekable()
-    {
-        return false;
-    }
-
-    public function seek($offset, $whence = SEEK_SET)
-    {
-        return false;
-    }
-
-    public function rewind()
-    {
-        return;
-    }
-
-    public function isWritable()
-    {
-        return false;
-    }
-
-    public function write($string)
-    {
-        throw new \BadMethodCallException();
-    }
-
-    public function read($length)
-    {
-        throw new \BadMethodCallException();
-    }
-
-    public function getContents()
-    {
-        return '';
-    }
-
-    public function getMetadata($key = null)
-    {
-        return array();
-    }
-
     public function isReadable()
     {
         return !$this->closed && $this->input->isReadable();
@@ -168,5 +103,83 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
         $this->emit('end', array($this));
         $this->emit('close', array($this));
         $this->removeAllListeners();
+    }
+
+    /** @ignore */
+    public function __toString()
+    {
+        return '';
+    }
+
+    /** @ignore */
+    public function detach()
+    {
+        return null;
+    }
+
+    /** @ignore */
+    public function getSize()
+    {
+        return null;
+    }
+
+    /** @ignore */
+    public function tell()
+    {
+        throw new \BadMethodCallException();
+    }
+
+    /** @ignore */
+    public function eof()
+    {
+        throw new \BadMethodCallException();
+    }
+
+    /** @ignore */
+    public function isSeekable()
+    {
+        return false;
+    }
+
+    /** @ignore */
+    public function seek($offset, $whence = SEEK_SET)
+    {
+        throw new \BadMethodCallException();
+    }
+
+    /** @ignore */
+    public function rewind()
+    {
+        throw new \BadMethodCallException();
+    }
+
+    /** @ignore */
+    public function isWritable()
+    {
+        return false;
+    }
+
+    /** @ignore */
+    public function write($string)
+    {
+        throw new \BadMethodCallException();
+    }
+
+    /** @ignore */
+    public function read($length)
+    {
+        throw new \BadMethodCallException();
+    }
+
+    /** @ignore */
+    public function getContents()
+    {
+        return '';
+    }
+
+    /** @ignore */
+    public function getMetadata($key = null)
+    {
+        return null;
     }
 }
