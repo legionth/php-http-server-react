@@ -7,6 +7,8 @@ use RingCentral\Psr7\Request;
 use React\Socket\Connection;
 use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
+use Legionth\React\Http\HttpBodyStream;
+use React\Stream\ReadableStream;
 
 class HttpServerTest extends TestCase
 {
@@ -30,7 +32,20 @@ class HttpServerTest extends TestCase
             $callback
         );
 
-        $this->connection = $this->getMockBuilder('React\Socket\Connection')->disableOriginalConstructor()->setMethods(array('write', 'end', 'close', 'pause', 'resume', 'isReadable', 'isWritable'))->getMock();
+        $this->connection = $this->getMockBuilder('React\Socket\Connection')
+            ->disableOriginalConstructor()
+            ->setMethods(
+                array(
+                    'write',
+                    'end',
+                    'close',
+                    'pause',
+                    'resume',
+                    'isReadable',
+                    'isWritable'
+                )
+            )
+            ->getMock();
     }
 
     /**
@@ -259,6 +274,83 @@ class HttpServerTest extends TestCase
         $socket->emit('connection', array($this->connection));
 
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testChunkedEncodingIsSetted()
+    {
+        $callback = function(RequestInterface $request) {
+            $stream = new ReadableStream();
+
+            $body = new HttpBodyStream($stream);
+
+            return new Response(
+                200,
+                array(
+                    'Transfer-Encoding' => 'chunked'
+                ),
+                $body);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testStreamDataNoChunkedEncodingSetted()
+    {
+        $callback = function(RequestInterface $request) {
+            $stream = new ReadableStream();
+
+            $body = new HttpBodyStream($stream);
+
+            return new Response(
+                200,
+                array(),
+                $body);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testTwoTypesOfEncodingForStreaming()
+    {
+        $callback = function(RequestInterface $request) {
+            $stream = new ReadableStream();
+
+            $body = new HttpBodyStream($stream);
+
+            return new Response(
+                200,
+                array('Transfer-Encoding' => 'another'),
+                $body);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"));
+
         $this->connection->emit('data', array($request));
     }
 }

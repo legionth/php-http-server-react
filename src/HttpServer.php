@@ -12,8 +12,9 @@ use React\Socket\ConnectionInterface;
 use RingCentral;
 use React\Stream\ReadableStream;
 use React\Promise\Promise;
-use Legionth\React\Http\Middleware;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use React\Stream\ReadableStreamInterface;
 
 class HttpServer extends EventEmitter
 {
@@ -179,21 +180,35 @@ class HttpServer extends EventEmitter
     }
 
     /**
-     * Handles an promise
+     * Handles a promise
      *
      * @param Connection $connection - connection between server and client
      * @param Promise $promise - Promise returned by the callback function of the server
      */
     private function handlePromise(Connection $connection, Promise $promise)
     {
+        $that = $this;
         $promise->then(
-            function ($response) use ($connection, $promise){
+            function ($response) use ($connection, $promise, $that){
                 $responseString = RingCentral\Psr7\str(new Response(500));
-
                 if ($response instanceof Response) {
+                    $body = $response->getBody();
+                    if ($body instanceof ReadableStreamInterface) {
+                        // reset Transfer-Encoding header and set always chunked encoding
+                        $response = $response->withHeader('Transfer-Encoding', 'chunked');
+                        // Send the header first without the body,
+                        // the body will be streamed
+                        $emptyBody = RingCentral\Psr7\stream_for('');
+                        $response = $response->withBody($emptyBody);
+
+                        $connection->write(RingCentral\Psr7\str($response));
+                        $chunkedEncoder = new ChunkedEncoderStream($body);
+                        $chunkedEncoder->pipe($connection);
+
+                        return;
+                    }
                     $responseString = RingCentral\Psr7\str($response);
                 }
-
                 $connection->write($responseString);
                 $connection->end();
             },
