@@ -33,41 +33,6 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
         $this->input->on('close', array($this, 'close'));
     }
 
-    public function getEncoder()
-    {
-        return $this->encoder;
-    }
-
-    /**
-     * Emits the data
-     * @param string $data - data to be emitted
-     */
-    public function handleData($data)
-    {
-        $this->emit('data', array($data));
-    }
-
-    /**
-     * Handles occuring exceptions on the stream
-     * @param \Exception $e
-     */
-    public function handleError(\Exception $e)
-    {
-        $this->emit('error', array($e));
-        $this->close();
-    }
-
-    /**
-     * Handles the end of the stream
-     */
-    public function handleEnd()
-    {
-        if (!$this->closed) {
-            $this->emit('end');
-            $this->close();
-        }
-    }
-
     public function isReadable()
     {
         return !$this->closed && $this->input->isReadable();
@@ -77,6 +42,7 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
     {
         $this->input->pause();
     }
+
 
     public function resume()
     {
@@ -181,5 +147,27 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
     public function getMetadata($key = null)
     {
         return null;
+    }
+
+    /** @internal */
+    public function handleData($data)
+    {
+        $this->emit('data', array($data));
+    }
+
+    /** @internal */
+    public function handleError(\Exception $e)
+    {
+        $this->emit('error', array($e));
+        $this->close();
+    }
+
+    /** @internal */
+    public function handleEnd()
+    {
+        if (!$this->closed) {
+            $this->emit('end');
+            $this->close();
+        }
     }
 }
