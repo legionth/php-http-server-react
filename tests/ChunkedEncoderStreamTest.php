@@ -14,11 +14,22 @@ class ChunkedEncoderStreamTest extends TestCase
         $this->chunkedStream = new ChunkedEncoderStream($this->input);
     }
 
-
     public function testChunked()
     {
         $this->chunkedStream->on('data', $this->expectCallableOnce(array("5\r\nhello\r\n")));
         $this->input->emit('data', array('hello'));
+    }
+
+    public function testEmptyString()
+    {
+        $this->chunkedStream->on('data', $this->expectCallableNever());
+        $this->input->emit('data', array(''));
+    }
+
+    public function testBiggerStringToCheckHexValue()
+    {
+        $this->chunkedStream->on('data', $this->expectCallableOnce(array("1a\r\nabcdefghijklmnopqrstuvwxyz\r\n")));
+        $this->input->emit('data', array('abcdefghijklmnopqrstuvwxyz'));
     }
 
     public function testHandleClose()

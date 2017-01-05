@@ -30,6 +30,10 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
      */
     public function handleData($data)
     {
+        if ($data == '') {
+            return;
+        }
+
         $completeChunk = $this->createChunk($data);
 
         $this->emit('data', array($completeChunk));
@@ -68,6 +72,7 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
     private function createChunk($data)
     {
         $byteSize = strlen($data);
+        $byteSize = dechex($byteSize);
         $chunkBeginning = $byteSize . "\r\n";
 
         return $chunkBeginning . $data . "\r\n";
