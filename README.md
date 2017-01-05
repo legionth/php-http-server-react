@@ -12,7 +12,7 @@ HTTP server written in PHP on top of ReactPHP.
  * [Return type of the callback function](#return-type-of-the-callback-function)
  * [Middleware](#middleware)
   * [Creating your own middleware](#creating-your-own-middleware)
- * [Streaming body data](#streaming-body-data)
+ * [Streaming responses](#streaming-responses)
 * [License](#license)
 
 ## Usage
@@ -188,7 +188,7 @@ This little example should show how you can use the middlwares e.g. to check or 
 
 Checkout the `examples/middleware` how to add multiple middlewares.
 
-### Streaming body data
+### Streaming responses
 
 Data that would take a while to be completed caused by computation, can be streamed directly to the client without buffering the whole data.
 Streaming makes it possible to send big amount of data in small chunks to the client.
@@ -212,7 +212,7 @@ $callback = function (RequestInterface $request) {
 ```
 
 The `HttpServer` will use the emitted data from the `ReadableStream` to send this data directly to the client.
-If you use the `HttpBodyStream` the whole communication to the client will be HTTP chunk encoded, other values set for `Transfer-Encoding` will be ignored.
+If you use the `HttpBodyStream` the whole transfer will be [chunked encoded](https://en.wikipedia.org/wiki/Chunked_transfer_encoding), other values set for `Transfer-Encoding` will be ignored.
 
 Check out the `examples` folder how your computation could look like.
 

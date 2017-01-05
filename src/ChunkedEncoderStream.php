@@ -6,9 +6,7 @@ use React\Stream\ReadableStreamInterface;
 use React\Stream\WritableStreamInterface;
 use React\Stream\Util;
 
-/**
- * Wraps any readable stream which will emit the data as HTTP chunks
- */
+/** @internal */
 class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterface
 {
     private $input;
@@ -22,60 +20,6 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
         $this->input->on('end', array($this, 'handleEnd'));
         $this->input->on('error', array($this, 'handleError'));
         $this->input->on('close', array($this, 'close'));
-    }
-
-    /**
-     * Will emit the given string in a chunked encoded string
-     * @param string $data - string to be tranfsformed into an HTTP chunked encoded string
-     */
-    public function handleData($data)
-    {
-        if ($data == '') {
-            return;
-        }
-
-        $completeChunk = $this->createChunk($data);
-
-        $this->emit('data', array($completeChunk));
-    }
-
-    /**
-     * Handles the an occuring exception on the stream
-     * @param \Exception $e
-     */
-    public function handleError(\Exception $e)
-    {
-        $this->emit('error', array($e));
-        $this->close();
-    }
-
-    /**
-     * Ends the stream
-     * @param string $data - data that should be written on the stream,
-     *                       before it closes
-     */
-    public function handleEnd()
-    {
-        $this->emit('data', array("0\r\n\r\n"));
-
-        if (!$this->closed) {
-            $this->emit('end');
-            $this->close();
-        }
-    }
-
-    /**
-     * @param string $data - string to be transformed in an valid
-     *                       HTTP encoded chunk string
-     * @return string
-     */
-    private function createChunk($data)
-    {
-        $byteSize = strlen($data);
-        $byteSize = dechex($byteSize);
-        $chunkBeginning = $byteSize . "\r\n";
-
-        return $chunkBeginning . $data . "\r\n";
     }
 
     public function isReadable()
@@ -115,4 +59,49 @@ class ChunkedEncoderStream extends EventEmitter implements ReadableStreamInterfa
 
         $this->removeAllListeners();
     }
+
+    /** @internal */
+    public function handleData($data)
+    {
+        if ($data === '') {
+            return;
+        }
+
+        $completeChunk = $this->createChunk($data);
+
+        $this->emit('data', array($completeChunk));
+    }
+
+    /** @internal */
+    public function handleError(\Exception $e)
+    {
+        $this->emit('error', array($e));
+        $this->close();
+    }
+
+    /** @internal */
+    public function handleEnd()
+    {
+        $this->emit('data', array("0\r\n\r\n"));
+
+        if (!$this->closed) {
+            $this->emit('end');
+            $this->close();
+        }
+    }
+
+    /**
+     * @param string $data - string to be transformed in an valid
+     *                       HTTP encoded chunk string
+     * @return string
+     */
+    private function createChunk($data)
+    {
+        $byteSize = strlen($data);
+        $byteSize = dechex($byteSize);
+        $chunkBeginning = $byteSize . "\r\n";
+
+        return $chunkBeginning . $data . "\r\n";
+    }
+
 }

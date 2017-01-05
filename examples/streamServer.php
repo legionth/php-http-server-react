@@ -6,7 +6,6 @@ use React\Socket\Server as Socket;
 use RingCentral\Psr7\Response;
 use Psr\Http\Message\RequestInterface;
 use React\Stream\ReadableStream;
-use Legionth\React\Http\ChunkedEncoderStream;
 
 require __DIR__ . '/../vendor/autoload.php';
 
