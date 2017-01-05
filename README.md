@@ -13,6 +13,7 @@ HTTP server written in PHP on top of ReactPHP.
  * [Middleware](#middleware)
   * [Creating your own middleware](#creating-your-own-middleware)
  * [Streaming responses](#streaming-responses)
+ * [Streaming requests](#streaming-requests)
 * [License](#license)
 
 ## Usage
@@ -215,6 +216,42 @@ The `HttpServer` will use the emitted data from the `ReadableStream` to send thi
 If you use the `HttpBodyStream` the whole transfer will be [chunked encoded](https://en.wikipedia.org/wiki/Chunked_transfer_encoding), other values set for `Transfer-Encoding` will be ignored.
 
 Check out the `examples` folder how your computation could look like.
+
+### Streaming requests
+
+The client can send chunks of data to the server through the [chunked transfer encoding](https://en.wikipedia.org/wiki/Chunked_transfer_encoding).
+This makes it possible to send big amount of data in small chunks to the server. There is no need to buffer the data on the client.
+
+The body of the request object in your callback and middleware function will be a `HttpBodyStream`, which can used as a standard [ReactPHP stream](https://github.com/reactphp/stream).
+
+```php
+
+$callback = function (RequestInterface $request) {
+    $body = $request->getBody();
+    
+    return new Promise(function ($resolve, $reject) use ($body) {
+        $content = '';
+        $body->on('data', function ($chunk) use ($resolve, &$content) {
+            // compute your content here
+        });
+
+        $body->on('end', function () use (&$content, $resolve) {
+            $resolve(
+                new Response(
+                    200,
+                    array(
+                        'Content-Length' => strlen($content),
+                        'Content-Type' => 'text/html'
+                    ),
+                    $content
+                )
+            );
+        });
+    });
+};
+```
+
+Check out the `examples` folder how your server could look like.
 
 ## Install
 
