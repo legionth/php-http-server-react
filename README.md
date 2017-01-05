@@ -190,8 +190,8 @@ Checkout the `examples/middleware` how to add multiple middlewares.
 
 ### Streaming body data
 
-If you have operations that need time to be computed(of course non-blocking ;-)), you can stream the intermediary results directly to the client,
-without buffering on your side.
+Data that would take a while to be completed caused by computation, can be streamed directly to the client without buffering the whole data.
+Streaming makes it possible to send big amount of data in small chunks to the client.
 
 Use an instance of the `HttpBodyStream` and use this instance as the body for `Response` object you want to return.
 
@@ -213,8 +213,6 @@ $callback = function (RequestInterface $request) {
 
 The `HttpServer` will use the emitted data from the `ReadableStream` to send this data directly to the client.
 If you use the `HttpBodyStream` the whole communication to the client will be HTTP chunk encoded, other values set for `Transfer-Encoding` will be ignored.
-
-Big amount of data can easily be handled and doesn't need to be saved temporarily, because it will be send directly to the client.
 
 Check out the `examples` folder how your computation could look like.
 
