@@ -195,14 +195,13 @@ class HttpServer extends EventEmitter
                     $body = $response->getBody();
                     if ($body instanceof ReadableStreamInterface) {
                         // reset Transfer-Encoding header and set always chunked encoding
-                        $response = $response->withoutHeader('Transfer-Encoding');
                         $response = $response->withHeader('Transfer-Encoding', 'chunked');
                         // Send the header first without the body,
                         // the body will be streamed
                         $emptyBody = RingCentral\Psr7\stream_for('');
-                        $headerResponse = $response->withBody($emptyBody);
+                        $response = $response->withBody($emptyBody);
 
-                        $connection->write(RingCentral\Psr7\str($headerResponse));
+                        $connection->write(RingCentral\Psr7\str($response));
                         $chunkedEncoder = new ChunkedEncoderStream($body);
                         $chunkedEncoder->pipe($connection);
 
