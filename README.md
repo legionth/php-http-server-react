@@ -219,8 +219,8 @@ Check out the `examples` folder how your computation could look like.
 
 ### Streaming requests
 
-The client can send chunks of data to the server through the [chunked transfer encoding](https://en.wikipedia.org/wiki/Chunked_transfer_encoding).
-This makes it possible to send big amount of data in small chunks to the server. There is no need to buffer the data on the client.
+Streaming requests makes it possible to send big amount of data in small chunks from the client to the server. 
+Every chunk will be sent directly to server, so there is no need to buffer the data on the client.
 
 The body of the request object in your callback and middleware function will be a `HttpBodyStream`, which can used as a standard [ReactPHP stream](https://github.com/reactphp/stream).
 
@@ -250,6 +250,8 @@ $callback = function (RequestInterface $request) {
     });
 };
 ```
+
+The `end` event will be sent when the client transfer is completed.
 
 Check out the `examples` folder how your server could look like.
 

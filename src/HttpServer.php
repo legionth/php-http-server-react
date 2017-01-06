@@ -13,6 +13,7 @@ use RingCentral;
 use React\Stream\ReadableStream;
 use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use React\Stream\ReadableStreamInterface;
 use Psr\Http\Message\StreamInterface;
 
@@ -60,14 +61,10 @@ class HttpServer extends EventEmitter
      */
     public function handleConnection(ConnectionInterface $connection)
     {
-        $bodyBuffer = '';
         $headerCompleted = false;
         $that = $this;
 
-        $chunkStream = new ReadableStream();
-        $chunkedDecoder = new ChunkedDecoder($chunkStream);
-
-        $bodyStream = new HttpBodyStream($chunkedDecoder);
+        $input = new ReadableStream();
 
         $headerStream = new ReadableStream();
         $headerDecoder = new HeaderDecoder($headerStream);
@@ -75,7 +72,11 @@ class HttpServer extends EventEmitter
         $request = null;
         $headerSend = false;
 
-        $connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream, &$request, &$bodyStream, &$headerSend) {
+        $contentSize = 0;
+
+        $bodyStream = null;
+
+        $connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$headerDecoder, &$input, $headerStream, &$request, &$headerSend, &$contentSize, &$bodyStream) {
             if (!$headerCompleted) {
                 $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
                     $request = RingCentral\Psr7\parse_request($header);
@@ -89,24 +90,70 @@ class HttpServer extends EventEmitter
                 if ($that->isChunkedEncodingActive($request)) {
                     if (!$headerSend) {
                         // Send header without body to stream the data
+                        $chunkedDecoder = new ChunkedDecoder($input);
+                        $bodyStream = new HttpBodyStream($chunkedDecoder);
                         $that->sendBody($bodyStream, $connection, $request);
                         $headerSend = true;
                     }
 
-                    $chunkStream->emit('data', array($data));
+                    $input->emit('data', array($data));
                 } else {
-                    $bodyBuffer .= $data;
                     $contentLengthArray = $request->getHeader('Content-Length');
 
-                    if (!empty($contentLengthArray) && strlen($bodyBuffer) == $contentLengthArray[0]) {
-                        $stringBodyStream = RingCentral\Psr7\stream_for($bodyBuffer);
-                        $that->sendBody($stringBodyStream, $connection, $request);
-                    } else if (empty($contentLengthArray) || $contentLengthArray[0] == 0) {
+                    if (count($contentLengthArray) > 1) {
+                        $that->sendResponse(new Response(400), $connection);
+                        return;
+                    } elseif (empty($contentLengthArray) && $data == '') {
                         $that->handleRequest($connection, $request);
+                        return;
+                    } elseif (empty($contentLengthArray) ) {
+                        $that->sendResponse(new Response(411), $connection);
+                        return;
+                    }
+
+                    $contentLength = $contentLengthArray[0];
+
+                    if (!is_numeric($contentLength)) {
+                        $that->sendResponse(new Response(400), $connection);
+                        return;
+                    }
+
+                    if (!$headerSend) {
+                        // Send header without body to stream the data
+                        $bodyStream = new HttpBodyStream($input);
+                        $that->sendBody($bodyStream, $connection, $request);
+                        $headerSend = true;
+                    }
+
+                    if (($contentSize + strlen($data)) > $contentLength) {
+                        // Only emit data to 'Content-Length', the rest will be ignored
+                        $data = substr($data, 0, $contentLength - $contentSize);
+                        $input->emit('data', array($data));
+                        $bodyStream->emit('end', array());
+                        return;
+                    }
+
+                    $contentSize += strlen($data);
+                    $input->emit('data', array($data));
+
+                    if ($contentSize == $contentLength) {
+                        $bodyStream->emit('end', array());
+                        return;
                     }
                 }
             }
         });
+    }
+
+    /**
+     * Sends a response on the connection and ends the connection
+     * @param ResponseInterface $response - Response message to be sent on the connection
+     * @param ConnectionInterface $connection - Connection between user and server
+     */
+    public function sendResponse(ResponseInterface $response, ConnectionInterface &$connection)
+    {
+        $connection->write(RingCentral\Psr7\str($response));
+        $connection->end();
     }
 
     /**
