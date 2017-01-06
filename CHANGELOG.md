@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 (2017-01-06)
+
+* Add HTTP body streaming 
+  (#16 by @legionth)
+
+* Add HTTP middleware support
+  (#12 by @legionth)
+
 ## 0.2.0 (2016-12-12)
 
 * Allow `React\Promise\Promise` as return type for the callback function
