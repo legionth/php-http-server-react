@@ -461,4 +461,12 @@ class HttpServerTest extends TestCase
 
         $this->connection->emit('data', array($request));
     }
+
+    public function testSplittedHeader()
+    {
+        $this->socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array("GET /ip HTTP/1.1\r\n"));
+        $this->connection->emit('data', array("me.org\r\n\r\n"));
+    }
 }

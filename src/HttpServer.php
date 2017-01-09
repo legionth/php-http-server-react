@@ -61,28 +61,26 @@ class HttpServer extends EventEmitter
      */
     public function handleConnection(ConnectionInterface $connection)
     {
-        $headerCompleted = false;
         $that = $this;
-
-        $headerStream = new ReadableStream();
-        $headerDecoder = new HeaderDecoder($headerStream);
 
         $request = null;
 
         $transferredLength = 0;
 
         $input = null;
+        $headerBuffer = '';
 
-        $connection->on('data', function ($data) use ($connection, &$headerCompleted, $that, &$headerDecoder, $headerStream, &$request, &$transferredLength, &$input) {
-            if (!$headerCompleted) {
-                $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted, &$input, $that, $connection) {
-                    $request = RingCentral\Psr7\parse_request($header);
-                    $data = substr($data, strlen($header));
-                    $headerCompleted = true;
+        $connection->on('data', function ($data) use ($connection, $that, &$request, &$transferredLength, &$input, &$headerBuffer) {
+            if ($request === null) {
+                $headerBuffer .= $data;
+                if (strpos($headerBuffer, "\r\n\r\n")) {
+                    // header is completed
+                    $fullHeader = substr($headerBuffer, 0, strpos($headerBuffer, "\r\n\r\n") + 4);
+                    $request = RingCentral\Psr7\parse_request($fullHeader);
+                    // remove header from $data, only body is left
+                    $data = substr($data, strlen($fullHeader));
                     $input = $that->sendHttpBodyStream($request, $connection);
-                });
-
-                $headerStream->emit('data', array($data));
+                }
             }
 
             if ($request === null) {
@@ -94,7 +92,7 @@ class HttpServer extends EventEmitter
                 return;
             }
 
-            if (!$request->hasHeader('Content-Length') && $data == '') {
+            if (!$request->hasHeader('Content-Length') && (string)$data === '') {
                 // Simple request without body and without 'Content-Length'
                 $input->emit('end', array());
                 return;
@@ -123,7 +121,7 @@ class HttpServer extends EventEmitter
             $transferredLength += strlen($data);
             $input->emit('data', array($data));
 
-            if ($transferredLength == $contentLength) {
+            if ((string)$transferredLength === (string)$contentLength) {
                 // 'Content-Length' reached, stream will end
                 $input->emit('end', array());
             }
