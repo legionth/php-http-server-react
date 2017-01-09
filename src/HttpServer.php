@@ -64,86 +64,88 @@ class HttpServer extends EventEmitter
         $headerCompleted = false;
         $that = $this;
 
-        $input = new ReadableStream();
-
         $headerStream = new ReadableStream();
         $headerDecoder = new HeaderDecoder($headerStream);
 
         $request = null;
-        $headerSend = false;
 
-        $contentSize = 0;
+        $transferredLength = 0;
 
-        $bodyStream = null;
+        $input = null;
 
-        $connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$headerDecoder, &$input, $headerStream, &$request, &$headerSend, &$contentSize, &$bodyStream) {
+        $connection->on('data', function ($data) use ($connection, &$headerCompleted, $that, &$headerDecoder, $headerStream, &$request, &$transferredLength, &$input) {
             if (!$headerCompleted) {
-                $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
+                $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted, &$input, $that, $connection) {
                     $request = RingCentral\Psr7\parse_request($header);
                     $data = substr($data, strlen($header));
                     $headerCompleted = true;
+                    $input = $that->sendHttpBodyStream($request, $connection);
                 });
+
                 $headerStream->emit('data', array($data));
             }
 
-            if (isset($request)) {
-                if ($that->isChunkedEncodingActive($request)) {
-                    if (!$headerSend) {
-                        // Send header without body to stream the data
-                        $chunkedDecoder = new ChunkedDecoder($input);
-                        $bodyStream = new HttpBodyStream($chunkedDecoder);
-                        $that->sendBody($bodyStream, $connection, $request);
-                        $headerSend = true;
-                    }
+            if ($request === null) {
+                return;
+            }
 
-                    $input->emit('data', array($data));
-                } else {
-                    $contentLengthArray = $request->getHeader('Content-Length');
+            if ($that->isChunkedEncodingActive($request)) {
+                $input->emit('data', array($data));
+                return;
+            }
 
-                    if (count($contentLengthArray) > 1) {
-                        $that->sendResponse(new Response(400), $connection);
-                        return;
-                    } elseif (empty($contentLengthArray) && $data == '') {
-                        $that->handleRequest($connection, $request);
-                        return;
-                    } elseif (empty($contentLengthArray) ) {
-                        $that->sendResponse(new Response(411), $connection);
-                        return;
-                    }
+            if (!$request->hasHeader('Content-Length') && $data == '') {
+                // Simple request without body and without 'Content-Length'
+                $input->emit('end', array());
+                return;
+            }
 
-                    $contentLength = $contentLengthArray[0];
+            if (!$request->hasHeader('Content-Length')) {
+                // 'Content-Length' is missing
+                $that->sendResponse(new Response(411), $connection);
+                return;
+            }
 
-                    if (!is_numeric($contentLength)) {
-                        $that->sendResponse(new Response(400), $connection);
-                        return;
-                    }
+            $contentLength = $request->getHeaderLine('Content-Length');
 
-                    if (!$headerSend) {
-                        // Send header without body to stream the data
-                        $bodyStream = new HttpBodyStream($input);
-                        $that->sendBody($bodyStream, $connection, $request);
-                        $headerSend = true;
-                    }
+            $int = (int) $contentLength;
+            if ((string)$int !== (string)$contentLength) {
+                // Send 400 status code if the value of 'Content-Length' is not an integer
+                $that->sendResponse(new Response(400), $connection);
+                return;
+            }
 
-                    if (($contentSize + strlen($data)) > $contentLength) {
-                        // Only emit data to 'Content-Length', the rest will be ignored
-                        $data = substr($data, 0, $contentLength - $contentSize);
-                        $input->emit('data', array($data));
-                        $bodyStream->emit('end', array());
-                        return;
-                    }
+            if (($transferredLength + strlen($data)) > $contentLength) {
+                // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
+                $data = substr($data, 0, $contentLength - $transferredLength);
+            }
 
-                    $contentSize += strlen($data);
-                    $input->emit('data', array($data));
+            $transferredLength += strlen($data);
+            $input->emit('data', array($data));
 
-                    if ($contentSize == $contentLength) {
-                        $bodyStream->emit('end', array());
-                        return;
-                    }
-                }
+            if ($transferredLength == $contentLength) {
+                // 'Content-Length' reached, stream will end
+                $input->emit('end', array());
             }
         });
     }
+
+    /** @internal */
+    public function sendHttpBodyStream(RequestInterface $request, ConnectionInterface $connection)
+    {
+        $input = new ReadableStream();
+
+        $bodyStream = new HttpBodyStream($input);
+        if ($this->isChunkedEncodingActive($request)) {
+            $chunkedDecoder = new ChunkedDecoder($input);
+            $bodyStream = new HttpBodyStream($chunkedDecoder);
+        }
+
+        $this->sendBody($bodyStream, $connection, $request);
+
+        return $input;
+    }
+
 
     /**
      * Sends a response on the connection and ends the connection
