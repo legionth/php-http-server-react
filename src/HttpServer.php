@@ -37,10 +37,14 @@ class HttpServer extends EventEmitter
 
         $this->socket = $socket;
         $this->callback = $callback;
-        $this->socket->on('connection', array(
-            $this,
-            'handleConnection'
-        ));
+
+        $this->socket->on(
+            'connection',
+            array(
+                $this,
+                'handleConnection'
+            )
+        );
 
         $this->middlewares = array();
     }
@@ -62,70 +66,73 @@ class HttpServer extends EventEmitter
     public function handleConnection(ConnectionInterface $connection)
     {
         $that = $this;
-
         $request = null;
-
+        $headerBuffer = '';
         $transferredLength = 0;
 
-        $input = null;
-        $headerBuffer = '';
 
-        $connection->on('data', function ($data) use ($connection, $that, &$request, &$transferredLength, &$input, &$headerBuffer) {
-            if ($request === null) {
-                $headerBuffer .= $data;
-                if (strpos($headerBuffer, "\r\n\r\n")) {
-                    // header is completed
-                    $fullHeader = substr($headerBuffer, 0, strpos($headerBuffer, "\r\n\r\n") + 4);
-                    $request = RingCentral\Psr7\parse_request($fullHeader);
-                    // remove header from $data, only body is left
-                    $data = substr($data, strlen($fullHeader));
-                    $input = $that->sendHttpBodyStream($request, $connection);
-                }
+        $connection->on('data', function ($data) use (&$connection, $that, &$request, &$headerBuffer, &$transferredLength) {
+            $headerBuffer .= $data;
+            if (strpos($headerBuffer, "\r\n\r\n")) {
+                // header is completed
+                $fullHeader = substr($headerBuffer, 0, strpos($headerBuffer, "\r\n\r\n") + 4);
+                $request = RingCentral\Psr7\parse_request($fullHeader);
+                // remove header from $data, only body is left
+                $data = (string)substr($data, strlen($fullHeader));
+                $input = $that->sendHttpBodyStream($request, $connection);
             }
 
-            if ($request === null) {
-                return;
-            }
-
-            if ($that->isChunkedEncodingActive($request)) {
-                $input->emit('data', array($data));
-                return;
-            }
-
-            if (!$request->hasHeader('Content-Length') && (string)$data === '') {
-                // Simple request without body and without 'Content-Length'
-                $input->emit('end', array());
-                return;
-            }
-
-            if (!$request->hasHeader('Content-Length')) {
-                // 'Content-Length' is missing
-                $that->sendResponse(new Response(411), $connection);
-                return;
-            }
-
-            $contentLength = $request->getHeaderLine('Content-Length');
-
-            $int = (int) $contentLength;
-            if ((string)$int !== (string)$contentLength) {
-                // Send 400 status code if the value of 'Content-Length' is not an integer
-                $that->sendResponse(new Response(400), $connection);
-                return;
-            }
-
-            if (($transferredLength + strlen($data)) > $contentLength) {
-                // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
-                $data = substr($data, 0, $contentLength - $transferredLength);
-            }
-
-            $transferredLength += strlen($data);
-            $input->emit('data', array($data));
-
-            if ((string)$transferredLength === (string)$contentLength) {
-                // 'Content-Length' reached, stream will end
-                $input->emit('end', array());
+            if ($request != null) {
+                $connection->removeAllListeners('data');
+                $connection->on('data', function ($data) use (&$connection, $that, &$request, &$transferredLength, &$input) {
+                    $that->handleBody($request, $data, $connection, $transferredLength, $input);
+                });
+                $connection->emit('data', array($data));
             }
         });
+    }
+
+    /** @internal */
+    public function handleBody(RequestInterface $request, $data, ConnectionInterface $connection, &$transferredLength, $input)
+    {
+        if ($this->isChunkedEncodingActive($request)) {
+            $input->emit('data', array($data));
+            return;
+        }
+
+        if (!$request->hasHeader('Content-Length') && $data === '') {
+            // Simple request without body and without 'Content-Length'
+            $input->emit('end', array());
+            return;
+        }
+
+        if (!$request->hasHeader('Content-Length')) {
+            // 'Content-Length' is missing
+            $this->sendResponse(new Response(411), $connection);
+            return;
+        }
+
+        $contentLength = $request->getHeaderLine('Content-Length');
+
+        $int = (int) $contentLength;
+        if ((string)$int !== (string)$contentLength) {
+            // Send 400 status code if the value of 'Content-Length' is not an integer
+            $this->sendResponse(new Response(400), $connection);
+            return;
+        }
+
+        if (($transferredLength + strlen($data)) > $contentLength) {
+            // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
+            $data = substr($data, 0, $contentLength - $transferredLength);
+        }
+
+        $transferredLength += strlen($data);
+        $input->emit('data', array($data));
+
+        if ((int)$transferredLength === (int)$contentLength) {
+            // 'Content-Length' reached, stream will end
+            $input->emit('end', array());
+        }
     }
 
     /** @internal */
