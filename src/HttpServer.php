@@ -65,13 +65,12 @@ class HttpServer extends EventEmitter
     public function handleConnection(ConnectionInterface $connection)
     {
         $that = $this;
-        $request = null;
         $headerBuffer = '';
 
-
-        $connection->on('data', function ($data) use (&$connection, $that, &$request, &$headerBuffer) {
+        $listener =  function ($data) use (&$connection, $that, &$headerBuffer, &$listener) {
             $headerBuffer .= $data;
             if (strpos($headerBuffer, "\r\n\r\n") !== false) {
+                $connection->removeListener('data', $listener);
                 // header is completed
                 $fullHeader = substr($headerBuffer, 0, strpos($headerBuffer, "\r\n\r\n") + 4);
 
@@ -85,36 +84,43 @@ class HttpServer extends EventEmitter
                 $data = (string)substr($data, strlen($fullHeader));
 
                 $that->handleBody($request, $connection);
-                $connection->emit('data', array($data));
+
+                if ($data !== '') {
+                    $connection->emit('data', array($data));
+                }
             }
-        });
+        };
+
+        $connection->on('data', $listener);
     }
 
     /** @internal */
     public function handleBody(RequestInterface $request, ConnectionInterface $connection)
     {
-        $input = $this->sendHttpBodyStream($request, $connection);
+        $bodyDataStream = new ReadableStream();
 
-        $connection->removeAllListeners('data');
         $that = $this;
 
         if ($this->isChunkedEncodingActive($request)) {
-            $connection->on('data', function ($data) use ($input){
-                $input->emit('data', array($data));
+            // Add ChunkedDecoder to stream
+            $chunkedDecoder = new ChunkedDecoder($bodyDataStream);
+            $bodyStream = new HttpBodyStream($chunkedDecoder);
+            $request = $request->withBody($bodyStream);
+            $this->handleRequest($connection, $request);
+
+            $connection->on('data', function ($data) use ($bodyDataStream){
+                $bodyDataStream->emit('data', array($data));
             });
             return;
         }
 
+        $bodyStream = new HttpBodyStream($bodyDataStream);
+        $request = $request->withBody($bodyStream);
+        $this->handleRequest($connection, $request);
+
         if (!$request->hasHeader('Content-Length')) {
-            $connection->on('data', function ($data) use ($that, $input, $connection){
-                if ($data === '') {
-                    // Simple request without body and without 'Content-Length'
-                    $input->emit('end', array());
-                    return;
-                }
-                // Request hasn't defined 'Content-Length' and body given
-                $that->sendResponse(new Response(411), $connection);
-            });
+            // Request hasn't defined 'Content-Length' and body given
+            $bodyDataStream->emit('end', array());
             return;
         }
 
@@ -130,7 +136,7 @@ class HttpServer extends EventEmitter
 
         $transferredLength = 0;
 
-        $connection->on('data', function ($data) use ($that, $contentLength, &$transferredLength, $input) {
+        $connection->on('data', function ($data) use ($that, $contentLength, &$transferredLength, $bodyDataStream) {
             // 'Content-Length' is given
             if (($transferredLength + strlen($data)) > $contentLength) {
                 // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
@@ -138,33 +144,14 @@ class HttpServer extends EventEmitter
             }
 
             $transferredLength += strlen($data);
-            $input->emit('data', array($data));
+            $bodyDataStream->emit('data', array($data));
 
             if ((int)$transferredLength === (int)$contentLength) {
                 // 'Content-Length' reached, stream will end
-                $input->emit('end', array());
+                $bodyDataStream->emit('end', array());
             }
         });
     }
-
-    /** @internal */
-    public function sendHttpBodyStream(RequestInterface $request, ConnectionInterface $connection)
-    {
-        $input = new ReadableStream();
-
-        $bodyStream = new HttpBodyStream($input);
-        if ($this->isChunkedEncodingActive($request)) {
-            $chunkedDecoder = new ChunkedDecoder($input);
-            $bodyStream = new HttpBodyStream($chunkedDecoder);
-        }
-
-        $request = $request->withBody($bodyStream);
-        $this->handleRequest($connection, $request);
-
-        return $input;
-    }
-
-
 
     /** @internal */
     public function sendResponse(ResponseInterface $response, ConnectionInterface &$connection)

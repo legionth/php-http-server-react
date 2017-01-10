@@ -402,12 +402,19 @@ class HttpServerTest extends TestCase
         $this->connection->emit('data', array($request));
     }
 
-    public function testContenLenghtWithouValueResultsInError()
+    public function testContenLenghtWithoutValueButBodyWillBeCutted()
     {
         $callback = function(RequestInterface $request) {
             $promise = new Promise(function ($resolve, $reject) use ($request) {
-                $request->getBody()->on('end', function() use ($resolve) {
-                    $resolve(new Response());
+                $body = $request->getBody();
+                $content = '';
+
+                $body->on('data', function($data) use (&$content) {
+                    $content = $data;
+                });
+
+                $request->getBody()->on('end', function() use ($resolve, $content) {
+                    $resolve(new Response(200, array('Content-Length' => strlen($content)), $content));
                 });
             });
             return $promise;
@@ -420,7 +427,7 @@ class HttpServerTest extends TestCase
 
         $socket->emit('connection', array($this->connection));
 
-        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 411 Length Required\r\n\r\n"));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"));
 
         $this->connection->emit('data', array($request));
     }
