@@ -494,4 +494,25 @@ class HttpServerTest extends TestCase
         $this->connection->emit('data', array("hel"));
         $this->connection->emit('data', array("lo"));
     }
+
+    public function testDoubleClrfInBeginningOfHeaderWillResultInError()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $request->getBody()->on('end', function() use ($resolve) {
+                    $resolve(new Response());
+                });
+            });
+
+                return $promise;
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+        $this->connection->emit('data', array("\r\n\r\n"));
+    }
 }

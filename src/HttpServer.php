@@ -15,7 +15,6 @@ use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use React\Stream\ReadableStreamInterface;
-use Psr\Http\Message\StreamInterface;
 
 class HttpServer extends EventEmitter
 {
@@ -68,47 +67,54 @@ class HttpServer extends EventEmitter
         $that = $this;
         $request = null;
         $headerBuffer = '';
-        $transferredLength = 0;
 
 
-        $connection->on('data', function ($data) use (&$connection, $that, &$request, &$headerBuffer, &$transferredLength) {
+        $connection->on('data', function ($data) use (&$connection, $that, &$request, &$headerBuffer) {
             $headerBuffer .= $data;
-            if (strpos($headerBuffer, "\r\n\r\n")) {
+            if (strpos($headerBuffer, "\r\n\r\n") !== false) {
                 // header is completed
                 $fullHeader = substr($headerBuffer, 0, strpos($headerBuffer, "\r\n\r\n") + 4);
-                $request = RingCentral\Psr7\parse_request($fullHeader);
+
+                try {
+                    $request = RingCentral\Psr7\parse_request($fullHeader);
+                } catch (\Exception $ex) {
+                    $that->sendResponse(new Response(400), $connection);
+                    return;
+                }
                 // remove header from $data, only body is left
                 $data = (string)substr($data, strlen($fullHeader));
-                $input = $that->sendHttpBodyStream($request, $connection);
-            }
 
-            if ($request != null) {
-                $connection->removeAllListeners('data');
-                $connection->on('data', function ($data) use (&$connection, $that, &$request, &$transferredLength, &$input) {
-                    $that->handleBody($request, $data, $connection, $transferredLength, $input);
-                });
+                $that->handleBody($request, $connection);
                 $connection->emit('data', array($data));
             }
         });
     }
 
     /** @internal */
-    public function handleBody(RequestInterface $request, $data, ConnectionInterface $connection, &$transferredLength, $input)
+    public function handleBody(RequestInterface $request, ConnectionInterface $connection)
     {
-        if ($this->isChunkedEncodingActive($request)) {
-            $input->emit('data', array($data));
-            return;
-        }
+        $input = $this->sendHttpBodyStream($request, $connection);
 
-        if (!$request->hasHeader('Content-Length') && $data === '') {
-            // Simple request without body and without 'Content-Length'
-            $input->emit('end', array());
+        $connection->removeAllListeners('data');
+        $that = $this;
+
+        if ($this->isChunkedEncodingActive($request)) {
+            $connection->on('data', function ($data) use ($input){
+                $input->emit('data', array($data));
+            });
             return;
         }
 
         if (!$request->hasHeader('Content-Length')) {
-            // 'Content-Length' is missing
-            $this->sendResponse(new Response(411), $connection);
+            $connection->on('data', function ($data) use ($that, $input, $connection){
+                if ($data === '') {
+                    // Simple request without body and without 'Content-Length'
+                    $input->emit('end', array());
+                    return;
+                }
+                // Request hasn't defined 'Content-Length' and body given
+                $that->sendResponse(new Response(411), $connection);
+            });
             return;
         }
 
@@ -116,23 +122,29 @@ class HttpServer extends EventEmitter
 
         $int = (int) $contentLength;
         if ((string)$int !== (string)$contentLength) {
-            // Send 400 status code if the value of 'Content-Length' is not an integer
+            // Send 400 status code if the value of 'Content-Length'
+            // is not an integer or is duplicated
             $this->sendResponse(new Response(400), $connection);
             return;
         }
 
-        if (($transferredLength + strlen($data)) > $contentLength) {
-            // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
-            $data = substr($data, 0, $contentLength - $transferredLength);
-        }
+        $transferredLength = 0;
 
-        $transferredLength += strlen($data);
-        $input->emit('data', array($data));
+        $connection->on('data', function ($data) use ($that, $contentLength, &$transferredLength, $input) {
+            // 'Content-Length' is given
+            if (($transferredLength + strlen($data)) > $contentLength) {
+                // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
+                $data = substr($data, 0, $contentLength - $transferredLength);
+            }
 
-        if ((int)$transferredLength === (int)$contentLength) {
-            // 'Content-Length' reached, stream will end
-            $input->emit('end', array());
-        }
+            $transferredLength += strlen($data);
+            $input->emit('data', array($data));
+
+            if ((int)$transferredLength === (int)$contentLength) {
+                // 'Content-Length' reached, stream will end
+                $input->emit('end', array());
+            }
+        });
     }
 
     /** @internal */
@@ -146,17 +158,15 @@ class HttpServer extends EventEmitter
             $bodyStream = new HttpBodyStream($chunkedDecoder);
         }
 
-        $this->sendBody($bodyStream, $connection, $request);
+        $request = $request->withBody($bodyStream);
+        $this->handleRequest($connection, $request);
 
         return $input;
     }
 
 
-    /**
-     * Sends a response on the connection and ends the connection
-     * @param ResponseInterface $response - Response message to be sent on the connection
-     * @param ConnectionInterface $connection - Connection between user and server
-     */
+
+    /** @internal */
     public function sendResponse(ResponseInterface $response, ConnectionInterface &$connection)
     {
         $connection->write(RingCentral\Psr7\str($response));
@@ -276,18 +286,5 @@ class HttpServer extends EventEmitter
                 $connection->end();
             }
         );
-    }
-
-    /**
-     * Adds the body to the request before handling the request
-     *
-     * @param StreamInterface $body - body to be added to the request object
-     * @param ConnectionInterface $connection - client-server connection
-     * @param Request $request - Adds the body to this request object
-     */
-    public function sendBody(StreamInterface $body, ConnectionInterface $connection, Request $request)
-    {
-        $request = $request->withBody($body);
-        $this->handleRequest($connection, $request);
     }
 }
