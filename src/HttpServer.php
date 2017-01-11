@@ -72,7 +72,7 @@ class HttpServer extends EventEmitter
             if (strpos($headerBuffer, "\r\n\r\n") !== false) {
                 $connection->removeListener('data', $listener);
                 // header is completed
-                $fullHeader = substr($headerBuffer, 0, strpos($headerBuffer, "\r\n\r\n") + 4);
+                $fullHeader = (string)substr($headerBuffer, 0, strpos($headerBuffer, "\r\n\r\n") + 4);
 
                 try {
                     $request = RingCentral\Psr7\parse_request($fullHeader);
@@ -80,6 +80,19 @@ class HttpServer extends EventEmitter
                     $that->sendResponse(new Response(400), $connection);
                     return;
                 }
+
+                if ($request->hasHeader('Content-Length')) {
+                    $contentLength = $request->getHeaderLine('Content-Length');
+
+                    $int = (int) $contentLength;
+                    if ((string)$int !== (string)$contentLength) {
+                        // Send 400 status code if the value of 'Content-Length'
+                        // is not an integer or is duplicated
+                        $that->sendResponse(new Response(400), $connection);
+                        return;
+                    }
+                }
+
                 // remove header from $data, only body is left
                 $data = (string)substr($data, strlen($fullHeader));
 
@@ -97,58 +110,45 @@ class HttpServer extends EventEmitter
     /** @internal */
     public function handleBody(RequestInterface $request, ConnectionInterface $connection)
     {
-        $bodyDataStream = new ReadableStream();
-
-        $that = $this;
-
         if ($this->isChunkedEncodingActive($request)) {
             // Add ChunkedDecoder to stream
-            $chunkedDecoder = new ChunkedDecoder($bodyDataStream);
+            $chunkedDecoder = new ChunkedDecoder($connection);
             $bodyStream = new HttpBodyStream($chunkedDecoder);
             $request = $request->withBody($bodyStream);
             $this->handleRequest($connection, $request);
-
-            $connection->on('data', function ($data) use ($bodyDataStream){
-                $bodyDataStream->emit('data', array($data));
-            });
             return;
         }
 
-        $bodyStream = new HttpBodyStream($bodyDataStream);
+        $bodyStream = new HttpBodyStream($connection);
         $request = $request->withBody($bodyStream);
         $this->handleRequest($connection, $request);
 
         if (!$request->hasHeader('Content-Length')) {
-            // Request hasn't defined 'Content-Length' and body given
-            $bodyDataStream->emit('end', array());
+            // Request hasn't defined 'Content-Length' will ignore rest of the request
+            // and ends the stream
+            $bodyStream->emit('end', array());
             return;
         }
 
         $contentLength = $request->getHeaderLine('Content-Length');
 
-        $int = (int) $contentLength;
-        if ((string)$int !== (string)$contentLength) {
-            // Send 400 status code if the value of 'Content-Length'
-            // is not an integer or is duplicated
-            $this->sendResponse(new Response(400), $connection);
-            return;
-        }
-
         $transferredLength = 0;
 
-        $connection->on('data', function ($data) use ($that, $contentLength, &$transferredLength, $bodyDataStream) {
+        $connection->on('data', function ($data) use ($contentLength, &$transferredLength, $bodyStream) {
             // 'Content-Length' is given
             if (($transferredLength + strlen($data)) > $contentLength) {
                 // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
-                $data = substr($data, 0, $contentLength - $transferredLength);
+                $data = (string)substr($data, 0, $contentLength - $transferredLength);
             }
 
             $transferredLength += strlen($data);
-            $bodyDataStream->emit('data', array($data));
+            if ($data !== '') {
+                $bodyStream->emit('data', array($data));
+            }
 
             if ((int)$transferredLength === (int)$contentLength) {
                 // 'Content-Length' reached, stream will end
-                $bodyDataStream->emit('end', array());
+                $bodyStream->emit('end', array());
             }
         });
     }
