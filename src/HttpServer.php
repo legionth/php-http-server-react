@@ -93,11 +93,10 @@ class HttpServer extends EventEmitter
                     }
                 }
 
-                // remove header from $data, only body is left
-                $data = (string)substr($data, strlen($fullHeader));
-
                 $that->handleBody($request, $connection);
 
+                // remove header from $data, only body is left
+                $data = (string)substr($data, strlen($fullHeader));
                 if ($data !== '') {
                     $connection->emit('data', array($data));
                 }
@@ -130,7 +129,7 @@ class HttpServer extends EventEmitter
             return;
         }
 
-        $contentLength = $request->getHeaderLine('Content-Length');
+        $contentLength = (int)$request->getHeaderLine('Content-Length');
 
         $transferredLength = 0;
 
@@ -146,7 +145,7 @@ class HttpServer extends EventEmitter
                 $bodyStream->emit('data', array($data));
             }
 
-            if ((int)$transferredLength === (int)$contentLength) {
+            if ($transferredLength === $contentLength) {
                 // 'Content-Length' reached, stream will end
                 $bodyStream->emit('end', array());
             }
