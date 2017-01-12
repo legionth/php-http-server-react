@@ -173,8 +173,7 @@ class HttpServerTest extends TestCase
     public function testAddOneMiddleware()
     {
         $callback = function (RequestInterface $request) {
-            $headerArray = $request->getHeader('From');
-            if (empty($headerArray)) {
+            if (!$request->hasHeader('From')) {
                 throw new Exception();
             }
 
@@ -206,9 +205,8 @@ class HttpServerTest extends TestCase
     public function testAddTwoMiddlwares()
     {
         $callback = function (RequestInterface $request) {
-            $headerArray = $request->getHeader('From');
             // Second middlware should remove the header added by the first middleware
-            if (empty($headerArray)) {
+            if (!$request->hasHeader('From')) {
                 return new Response();
             }
             throw new Exception();
@@ -246,6 +244,126 @@ class HttpServerTest extends TestCase
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
         $this->connection->emit('data', array($request));
     }
+
+    public function testMiddlewareRequestIsPromise()
+    {
+        $callback = function (RequestInterface $request) {
+            if ($request->hasHeader('From')) {
+                return new Response();
+            }
+            throw new Exception();
+        };
+
+        $middleware = function (RequestInterface $request, $next) {
+            if (!is_callable($next)) {
+                throw new Exception();
+            }
+
+            $promise = new Promise(function ($resolve, $reject) use ($request){
+                $resolve($request->withAddedHeader('From', 'user@example.com'));
+            });
+
+            return $next($promise);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+        $server->addMiddleware($middleware);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testMiddlewareResponseAndRequestArePromises()
+    {
+        $callback = function (RequestInterface $request) {
+            if ($request->hasHeader('From')) {
+                return new Response();
+            }
+            throw new Exception();
+        };
+
+        $middleware = function (RequestInterface $request, $next) {
+            if (!is_callable($next)) {
+                throw new Exception();
+            }
+
+            $promise = new Promise(function ($resolve, $reject) use ($request){
+                $resolve($request->withAddedHeader('From', 'user@example.com'));
+            });
+
+            return $next($promise);
+        };
+
+        $middlewareTwo = function (RequestInterface $request, $next) {
+            $promise = $next($request);
+
+            $response = $promise->then(function($response) {
+                return $response->withAddedHeader('Language', 'GER');
+            });
+
+            return $response;
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+        $server->addMiddleware($middleware);
+        $server->addMiddleware($middlewareTwo);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nLanguage: GER\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testMiddlewareResponseIsPromise()
+    {
+        $callback = function (RequestInterface $request) {
+            if ($request->hasHeader('From')) {
+                return new Response();
+            }
+            throw new Exception();
+        };
+
+        $middleware = function (RequestInterface $request, $next) {
+            if (!is_callable($next)) {
+                throw new Exception();
+            }
+
+            $request = $request->withAddedHeader('From', 'user@example.com');
+
+            return $next($request);
+        };
+
+        $middlewareTwo = function (RequestInterface $request, $next) {
+            $promise = $next($request);
+
+            $response = $promise->then(function($response) {
+                return $response->withAddedHeader('Language', 'GER');
+            });
+
+            return $response;
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+        $server->addMiddleware($middleware);
+        $server->addMiddleware($middlewareTwo);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nLanguage: GER\r\n\r\n"));
+        $this->connection->emit('data', array($request));
+    }
+
 
     public function testMiddlewareReturnsForbiddenMessage()
     {

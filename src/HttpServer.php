@@ -152,10 +152,10 @@ class HttpServer extends EventEmitter
     }
 
     /**
-     * Executes the middlware chain and the callback function to receive the response object
+     * Executes the middleware chain and the callback function to receive the response object
      *
      * @param array $middlewareChain - middleware chain to execute
-     * @param RequestInterface $request - initial request from the client
+     * @param RequestInterface|Promise $request - promise or request returned by the middleware
      * @param callable $callback - user callback function, last chain link
      * @return Response returns the response object handled by different middlwares or only the callback function
      */
@@ -163,10 +163,25 @@ class HttpServer extends EventEmitter
     {
         $firstCallback = array_shift($middlewareChain);
 
-        $next = function (Request $request) use (&$middlewareChain, $callback, &$next) {
+        $next = function ($request) use (&$middlewareChain, $callback, &$next) {
             $current = $callback;
             if (!empty($middlewareChain)) {
                 $current = array_shift($middlewareChain);
+            }
+
+            if ($request instanceof Promise) {
+                $promise = $request->then(function ($request) use ($current, $next) {
+                    $promise = new Promise(function($resolve, $reject) use ($current, $next, $request) {
+                        $resolve($current($request, $next));
+                    });
+                    return $promise;
+                });
+
+                return $promise;
+            }
+
+            if (!$request instanceof RequestInterface) {
+                throw new \BadFunctionCallException();
             }
 
             $promise = new Promise(function($resolve, $reject) use ($current, $next, $request){

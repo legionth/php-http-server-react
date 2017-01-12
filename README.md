@@ -171,8 +171,11 @@ $addHeaderToRequest = function (RequestInterface $request, callable $next) {
 };
 
 $addHeaderToResponse = function (RequestInterface $request, callable $next) {
-    $response = $next($request);
-    $response = $response->withAddedHeader('Age', '12');
+    $promise = $next($request);
+    $response = $promise->then(fuction ($response) {
+        return $response->withAddedHeader('Age', '12');
+    });
+
     return $response;
 };
 
@@ -183,6 +186,9 @@ $server->addMiddleware($addHeaderToResponse);
 ```
 In this example `$timeBlockingMiddleWare` will be called first, the `$addHeaderToRequest` as second and `$addHeaderToResponse` as third .
 The last part of the chain is the `callback` function.
+
+The `$next(...)` call will always return a [Promise](https://github.com/reactphp/promise).
+The first paramter of `$next` can either be a `Promise` or `RequestInterface` object.
 
 This little example should show how you can use the middlwares e.g. to check or manipulate the requests/response objects.
 

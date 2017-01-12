@@ -49,7 +49,8 @@ $middlewareTimeBlocking = function (RequestInterface $request, callable $next) {
             'Content-Length' => strlen($body),
             'Content-Type' => 'text/html'
         ),
-        $body);
+        $body
+    );
 };
 
 $middlewareAddLanguageHeader = function (RequestInterface $request, callable $next) {
@@ -59,6 +60,7 @@ $middlewareAddLanguageHeader = function (RequestInterface $request, callable $ne
 
 $middlewareAddDateHeaderToResponse = function (RequestInterface $request, callable $next) {
     $promise = $next($request);
+
     $response = $promise->then(function($response) {
         return $response->withAddedHeader('Date', date('Y-m-d'));
     });
