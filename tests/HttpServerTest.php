@@ -410,7 +410,7 @@ class HttpServerTest extends TestCase
                 $content = '';
 
                 $body->on('data', function($data) use (&$content) {
-                    $content = $data;
+                    $content .= $data;
                 });
 
                 $request->getBody()->on('end', function() use ($resolve, $content) {
@@ -440,7 +440,7 @@ class HttpServerTest extends TestCase
                 $content = '';
 
                 $body->on('data', function($data) use (&$content) {
-                    $content = $data;
+                    $content .= $data;
                 });
 
                 $body->on('end', function() use (&$content, $resolve) {
