@@ -10,7 +10,6 @@ use RingCentral\Psr7\Response;
 use RingCentral\Psr7\Request;
 use React\Socket\ConnectionInterface;
 use RingCentral;
-use React\Stream\ReadableStream;
 use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -118,7 +117,11 @@ class HttpServer extends EventEmitter
             return;
         }
 
-        $bodyStream = new HttpBodyStream($connection);
+        $contentLength = (int)$request->getHeaderLine('Content-Length');
+
+        $stream = new LengthLimitedStream($connection, $contentLength);
+        $bodyStream = new HttpBodyStream($stream);
+
         $request = $request->withBody($bodyStream);
         $this->handleRequest($connection, $request);
 
@@ -128,28 +131,6 @@ class HttpServer extends EventEmitter
             $bodyStream->emit('end', array());
             return;
         }
-
-        $contentLength = (int)$request->getHeaderLine('Content-Length');
-
-        $transferredLength = 0;
-
-        $connection->on('data', function ($data) use ($contentLength, &$transferredLength, $bodyStream) {
-            // 'Content-Length' is given
-            if (($transferredLength + strlen($data)) > $contentLength) {
-                // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
-                $data = (string)substr($data, 0, $contentLength - $transferredLength);
-            }
-
-            $transferredLength += strlen($data);
-            if ($data !== '') {
-                $bodyStream->emit('data', array($data));
-            }
-
-            if ($transferredLength === $contentLength) {
-                // 'Content-Length' reached, stream will end
-                $bodyStream->emit('end', array());
-            }
-        });
     }
 
     /** @internal */
