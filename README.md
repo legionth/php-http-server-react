@@ -13,6 +13,7 @@ HTTP server written in PHP on top of ReactPHP.
  * [Middleware](#middleware)
   * [Creating your own middleware](#creating-your-own-middleware)
  * [Streaming responses](#streaming-responses)
+ * [HTTPS server](#https-server)
 * [License](#license)
 
 ## Usage
@@ -308,6 +309,12 @@ The `HttpServer` will use the emitted data from the `ReadableStream` to send thi
 If you use the `HttpBodyStream` the whole transfer will be [chunked encoded](https://en.wikipedia.org/wiki/Chunked_transfer_encoding), other values set for `Transfer-Encoding` will be ignored.
 
 Check out the `examples` folder how your computation could look like.
+
+### HTTPS Server
+
+The HTTP server can be set to an HTTPS server by using the [SecureServer from the socket package of ReactPHP](https://github.com/reactphp/socket#secureserver).
+
+Check out the `examples` folder how your HTTPS server could look like.
 
 ## Install
 
