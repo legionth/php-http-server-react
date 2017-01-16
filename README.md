@@ -219,20 +219,19 @@ Check out the `examples` folder how your computation could look like.
 
 ### Streaming requests
 
-Streaming requests makes it possible to send big amount of data in small chunks from the client to the server. 
-Every chunk will be sent directly to server, so there is no need to buffer the data on the client.
+Streaming requests makes it possible to send big amount of data in small chunks from the client to the server. E.g you can start the computation of the request,
+when your application received an specific part of the body.
 
-The body of the request object in your callback and middleware function will be a `HttpBodyStream`, which can used as a standard [ReactPHP stream](https://github.com/reactphp/stream).
+The body of the request object in your callback and middleware function will be a [ReadableStreamInterface](https://github.com/reactphp/stream).
 
 ```php
-
 $callback = function (RequestInterface $request) {
     $body = $request->getBody();
     
     return new Promise(function ($resolve, $reject) use ($body) {
         $content = '';
         $body->on('data', function ($chunk) use ($resolve, &$content) {
-            // compute your content here
+            $content .= "hello";
         });
 
         $body->on('end', function () use (&$content, $resolve) {
@@ -252,6 +251,8 @@ $callback = function (RequestInterface $request) {
 ```
 
 The `end` event will be sent when the client transfer is completed.
+
+This is just an example you can use a [BufferedSink](https://github.com/reactphp/stream) from the `reactphp/stream` to avoid these lines of code.
 
 Check out the `examples` folder how your server could look like.
 
