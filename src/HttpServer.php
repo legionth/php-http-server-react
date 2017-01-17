@@ -129,7 +129,6 @@ class HttpServer extends EventEmitter
             // Request hasn't defined 'Content-Length' will ignore rest of the request
             // and ends the stream
             $bodyStream->emit('end', array());
-            return;
         }
     }
 
@@ -180,7 +179,8 @@ class HttpServer extends EventEmitter
                 });
             }
 
-            $this->handlePromise($connection, $promise);
+            $keepAlive = $this->isConnectionPersistent($request);
+            $this->handlePromise($connection, $promise, $keepAlive);
         } catch (\Exception $exception) {
             $connection->write(RingCentral\Psr7\str(new Response(500)));
             $connection->end();
@@ -221,11 +221,11 @@ class HttpServer extends EventEmitter
      * @param Connection $connection - connection between server and client
      * @param Promise $promise - Promise returned by the callback function of the server
      */
-    private function handlePromise(Connection $connection, Promise $promise)
+    private function handlePromise(Connection $connection, Promise $promise, $keepAlive)
     {
         $that = $this;
         $promise->then(
-            function ($response) use ($connection, $promise, $that){
+            function ($response) use ($connection, $promise, $that, $keepAlive){
                 $responseString = RingCentral\Psr7\str(new Response(500));
                 if ($response instanceof Response) {
                     $body = $response->getBody();
@@ -245,13 +245,41 @@ class HttpServer extends EventEmitter
                     }
                     $responseString = RingCentral\Psr7\str($response);
                 }
+
                 $connection->write($responseString);
-                $connection->end();
+
+                if (!$keepAlive) {
+                    $connection->end();
+                    return;
+                }
+
+                $that->handleConnection($connection);
             },
             function () use ($connection) {
                 $connection->write(RingCentral\Psr7\str(new Response(500)));
                 $connection->end();
             }
         );
+    }
+
+    private function isConnectionPersistent(RequestInterface $request)
+    {
+        $protocol = $request->getProtocolVersion();
+        $keepAlive = false;
+
+        if ($protocol === '1.1') {
+            $keepAlive = true;
+        }
+
+        if ($request->hasHeader('Connection')) {
+            $connectionLine = $request->getHeaderLine('Connection');
+            if ($connectionLine === 'keep-alive') {
+                $keepAlive = true;
+            } elseif ($connectionLine === 'close') {
+                $keepAlive = false;
+            }
+        }
+
+        return $keepAlive;
     }
 }

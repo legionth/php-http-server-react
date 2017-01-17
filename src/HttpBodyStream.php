@@ -65,6 +65,8 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
 
         $this->readable = false;
 
+        $this->input->emit('close');
+
         $this->emit('end', array($this));
         $this->emit('close', array($this));
         $this->removeAllListeners();

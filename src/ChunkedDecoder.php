@@ -28,6 +28,41 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
         $this->input->on('close', array($this, 'close'));
     }
 
+    public function isReadable()
+    {
+        return ! $this->closed && $this->input->isReadable();
+    }
+
+    public function pause()
+    {
+        $this->input->pause();
+    }
+
+    public function resume()
+    {
+        $this->input->resume();
+    }
+
+    public function pipe(WritableStreamInterface $dest, array $options = array())
+    {
+        Util::pipe($this, $dest, $options);
+
+        return $dest;
+    }
+
+    public function close()
+    {
+        if ($this->closed) {
+            return;
+        }
+
+        $this->closed = true;
+        $this->input->removeListener('data', array($this, 'handleData'));
+        $this->emit('close');
+        $this->removeAllListeners();
+    }
+
+    /** @internal */
     public function handleData($data)
     {
         while (strlen($data) != 0) {
@@ -155,50 +190,10 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
         }
     }
 
-    /**
-     *
-     * @internal
-     *
-     */
+    /** @internal */
     public function handleError(\Exception $e)
     {
         $this->emit('error', array($e));
         $this->close();
-    }
-
-    public function isReadable()
-    {
-        return ! $this->closed && $this->input->isReadable();
-    }
-
-    public function pause()
-    {
-        $this->input->pause();
-    }
-
-    public function resume()
-    {
-        $this->input->resume();
-    }
-
-    public function pipe(WritableStreamInterface $dest, array $options = array())
-    {
-        Util::pipe($this, $dest, $options);
-
-        return $dest;
-    }
-
-    public function close()
-    {
-        if ($this->closed) {
-            return;
-        }
-
-        $this->closed = true;
-
-        $this->input->close();
-
-        $this->emit('close');
-        $this->removeAllListeners();
     }
 }
