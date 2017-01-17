@@ -179,8 +179,9 @@ class HttpServer extends EventEmitter
                 });
             }
 
-            $keepAlive = $this->isConnectionPersistent($request);
-            $this->handlePromise($connection, $promise, $keepAlive);
+
+
+            $this->handlePromise($connection, $promise, $request);
         } catch (\Exception $exception) {
             $connection->write(RingCentral\Psr7\str(new Response(500)));
             $connection->end();
@@ -221,11 +222,12 @@ class HttpServer extends EventEmitter
      * @param Connection $connection - connection between server and client
      * @param Promise $promise - Promise returned by the callback function of the server
      */
-    private function handlePromise(Connection $connection, Promise $promise, $keepAlive)
+    private function handlePromise(Connection $connection, Promise $promise, RequestInterface $request)
     {
         $that = $this;
+
         $promise->then(
-            function ($response) use ($connection, $promise, $that, $keepAlive){
+            function ($response) use ($connection, $promise, $that, $request){
                 $responseString = RingCentral\Psr7\str(new Response(500));
                 if ($response instanceof Response) {
                     $body = $response->getBody();
@@ -248,12 +250,14 @@ class HttpServer extends EventEmitter
 
                 $connection->write($responseString);
 
-                if (!$keepAlive) {
+                if (!$that->isConnectionPersistent($request)) {
                     $connection->end();
                     return;
                 }
 
-                $that->handleConnection($connection);
+                $request->getBody()->on('end', function () use ($that, $connection) {
+                    $that->handleConnection($connection);
+                });
             },
             function () use ($connection) {
                 $connection->write(RingCentral\Psr7\str(new Response(500)));
@@ -264,10 +268,9 @@ class HttpServer extends EventEmitter
 
     private function isConnectionPersistent(RequestInterface $request)
     {
-        $protocol = $request->getProtocolVersion();
         $keepAlive = false;
 
-        if ($protocol === '1.1') {
+        if ($request->getProtocolVersion() === '1.1') {
             $keepAlive = true;
         }
 

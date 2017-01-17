@@ -21,10 +21,9 @@ class HttpServerTest extends TestCase
     {
         $this->loop = new React\EventLoop\StreamSelectLoop();
         $this->socket = new Socket($this->loop);
-        $response = new Response();
 
-        $callback = function ($request) use ($response) {
-            return $response;
+        $callback = function ($request) {
+            return new Response();
         };
 
         $this->httpServer = new HttpServer(
@@ -78,7 +77,7 @@ class HttpServerTest extends TestCase
 
     public function testRequestWithChunkedEncodig()
     {
-        $request = "GET /ip HTTP/1.1\r\nHost: httpbin.org\r\nTransfer-Encoding: chunked\r\n\r\n";
+        $request = "GET / HTTP/1.1\r\nHost: me.org\r\nTransfer-Encoding: chunked\r\n\r\n";
         $request .= "3\r\nbla\r\n0\r\n\r\n";
 
         $this->socket->emit('connection', array($this->connection));
@@ -469,57 +468,57 @@ class HttpServerTest extends TestCase
         $this->connection->emit('data', array($request));
     }
 
-//     public function testSplittedHeader()
-//     {
-//         $this->socket->emit('connection', array($this->connection));
-//         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
-//         $this->connection->emit('data', array("GET /ip HTTP/1.1\r\n"));
-//         $this->connection->emit('data', array("me.org\r\n\r\n"));
-//     }
+    public function testSplittedHeader()
+    {
+        $this->socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array("GET /ip HTTP/1.1\r\n"));
+        $this->connection->emit('data', array("me.org\r\n\r\n"));
+    }
 
-//     public function testSplittedBody()
-//     {
-//         $callback = function(RequestInterface $request) {
-//             $promise = new Promise(function ($resolve, $reject) use ($request) {
-//                 $request->getBody()->on('end', function() use ($resolve) {
-//                     $resolve(new Response());
-//                 });
-//             });
+    public function testSplittedBody()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $request->getBody()->on('end', function() use ($resolve) {
+                    $resolve(new Response());
+                });
+            });
 
-//             return $promise;
-//         };
+            return $promise;
+        };
 
-//         $socket = new Socket($this->loop);
-//         $server = new HttpServer($socket, $callback);
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
 
-//         $socket->emit('connection', array($this->connection));
+        $socket->emit('connection', array($this->connection));
 
-//         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
-//         $this->connection->emit('data', array("GET /ip HTTP/1.1\r\n"));
-//         $this->connection->emit('data', array("Content-Length: 5\r\n"));
-//         $this->connection->emit('data', array("me.org\r\n\r\n"));
-//         $this->connection->emit('data', array("hel"));
-//         $this->connection->emit('data', array("lo"));
-//     }
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array("GET /ip HTTP/1.1\r\n"));
+        $this->connection->emit('data', array("Content-Length: 5\r\n"));
+        $this->connection->emit('data', array("me.org\r\n\r\n"));
+        $this->connection->emit('data', array("hel"));
+        $this->connection->emit('data', array("lo"));
+    }
 
-//     public function testDoubleClrfInBeginningOfHeaderWillResultInError()
-//     {
-//         $callback = function(RequestInterface $request) {
-//             $promise = new Promise(function ($resolve, $reject) use ($request) {
-//                 $request->getBody()->on('end', function() use ($resolve) {
-//                     $resolve(new Response());
-//                 });
-//             });
+    public function testDoubleClrfInBeginningOfHeaderWillResultInError()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $request->getBody()->on('end', function() use ($resolve) {
+                    $resolve(new Response());
+                });
+            });
 
-//                 return $promise;
-//         };
+                return $promise;
+        };
 
-//         $socket = new Socket($this->loop);
-//         $server = new HttpServer($socket, $callback);
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
 
-//         $socket->emit('connection', array($this->connection));
+        $socket->emit('connection', array($this->connection));
 
-//         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
-//         $this->connection->emit('data', array("\r\n\r\n"));
-//     }
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+        $this->connection->emit('data', array("\r\n\r\n"));
+    }
 }
