@@ -522,4 +522,25 @@ class HttpServerTest extends TestCase
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
         $this->connection->emit('data', array("\r\n\r\n"));
     }
+
+    public function testContentLengthIsZeroInRequest()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $request->getBody()->on('end', function() use ($resolve) {
+                    $resolve(new Response());
+                });
+            });
+
+            return $promise;
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array("GET / HTTP/1.1\r\nContent-Length: 0\r\n\r\n"));
+    }
 }

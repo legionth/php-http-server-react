@@ -134,6 +134,10 @@ class HttpServer extends EventEmitter
 
         $request = $request->withBody($bodyStream);
         $this->handleRequest($connection, $request);
+
+        if ($contentLength === 0) {
+            $stream->emit('end', array());
+        }
     }
 
     /** @internal */

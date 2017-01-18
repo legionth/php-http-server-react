@@ -11,32 +11,44 @@ class LengthLimitedStreamTest extends TestCase
     public function setUp()
     {
         $this->input = new ReadableStream();
-        $this->stream = new LengthLimitedStream($this->input, 5);
     }
 
     public function testSimpleChunk()
     {
-        $this->stream->on('data', $this->expectCallableOnceWith('hello'));
+        $stream = new LengthLimitedStream($this->input, 5);
+        $stream->on('data', $this->expectCallableOnceWith('hello'));
+        $stream->on('end', $this->expectCallableOnce());
         $this->input->emit('data', array("hello world"));
     }
 
     public function testInputStreamKeepsEmitting()
     {
-        $this->stream->on('data', $this->expectCallableOnceWith('hello'));
+        $stream = new LengthLimitedStream($this->input, 5);
+        $stream->on('data', $this->expectCallableOnceWith('hello'));
+        $stream->on('end', $this->expectCallableOnce());
+
         $this->input->emit('data', array("hello world"));
         $this->input->emit('data', array("world"));
         $this->input->emit('data', array("world"));
     }
 
+    public function testZeroLength()
+    {
+        $stream = new LengthLimitedStream($this->input, 0);
+        $stream->on('data', $this->expectCallableNever());
+        $stream->on('end', $this->expectCallableOnce());
+        $this->input->emit('data', array("hello world"));
+    }
 
     public function testHandleError()
     {
-        $this->stream->on('error', $this->expectCallableOnce());
-        $this->stream->on('close', $this->expectCallableOnce());
+        $stream = new LengthLimitedStream($this->input, 0);
+        $stream->on('error', $this->expectCallableOnce());
+        $stream->on('close', $this->expectCallableOnce());
 
         $this->input->emit('error', array(new \RuntimeException()));
 
-        $this->assertFalse($this->stream->isReadable());
+        $this->assertFalse($stream->isReadable());
     }
 
     public function testPauseStream()
@@ -44,8 +56,8 @@ class LengthLimitedStreamTest extends TestCase
         $input = $this->getMock('React\Stream\ReadableStreamInterface');
         $input->expects($this->once())->method('pause');
 
-        $parser = new LengthLimitedStream($input, 0);
-        $parser->pause();
+        $stream = new LengthLimitedStream($input, 0);
+        $stream->pause();
     }
 
     public function testResumeStream()
@@ -53,27 +65,29 @@ class LengthLimitedStreamTest extends TestCase
         $input = $this->getMock('React\Stream\ReadableStreamInterface');
         $input->expects($this->once())->method('pause');
 
-        $parser = new LengthLimitedStream($input, 0);
-        $parser->pause();
-        $parser->resume();
+        $stream = new LengthLimitedStream($input, 0);
+        $stream->pause();
+        $stream->resume();
     }
 
     public function testPipeStream()
     {
+        $stream = new LengthLimitedStream($this->input, 0);
         $dest = $this->getMock('React\Stream\WritableStreamInterface');
 
-        $ret = $this->stream->pipe($dest);
+        $ret = $stream->pipe($dest);
 
         $this->assertSame($dest, $ret);
     }
 
     public function testHandleClose()
     {
-        $this->stream->on('close', $this->expectCallableOnce());
+        $stream = new LengthLimitedStream($this->input, 0);
+        $stream->on('close', $this->expectCallableOnce());
 
         $this->input->close();
         $this->input->emit('end', array());
 
-        $this->assertFalse($this->stream->isReadable());
+        $this->assertFalse($stream->isReadable());
     }
 }
