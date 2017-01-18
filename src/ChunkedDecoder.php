@@ -12,15 +12,17 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
     const CRLF = "\r\n";
 
     private $closed = false;
+    private $server;
     private $input;
     private $buffer = '';
     private $chunkSize = 0;
     private $actualChunksize = 0;
     private $chunkHeaderComplete = false;
 
-    public function __construct(ReadableStreamInterface $input)
+    public function __construct(ReadableStreamInterface $input, HttpServer $server)
     {
         $this->input = $input;
+        $this->server = $server;
 
         $this->input->on('data', array($this, 'handleData'));
         $this->input->on('end', array($this, 'handleEnd'));
@@ -57,7 +59,6 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
         }
 
         $this->closed = true;
-        $this->input->removeListener('data', array($this, 'handleData'));
         $this->emit('close');
         $this->removeAllListeners();
     }
@@ -66,7 +67,7 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
     public function handleData($data)
     {
         while (strlen($data) != 0) {
-            if (! $this->chunkHeaderComplete) {
+            if (!$this->chunkHeaderComplete) {
                 $data = $this->handleChunkHeader($data);
             }
             // Not 'else', chunkHeaderComplete can change in 'handleChunkHeader'
@@ -145,6 +146,14 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
     {
         if ($this->chunkSize == 0 && $this->isLineComplete($this->buffer . $data, $chunk, $this->chunkSize)) {
             $this->emit('end', array());
+
+            $data = substr($data, 2);
+            if ($data !== '') {
+                $this->input->removeListener('data', array($this, 'handleData'));
+                $this->server->handleConnection($this->input);
+                $this->input->emit('data', array($data));
+                return;
+            }
         }
 
         if (!$this->isLineComplete($this->buffer . $data, $chunk, $this->chunkSize)) {

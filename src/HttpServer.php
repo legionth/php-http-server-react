@@ -61,7 +61,7 @@ class HttpServer extends EventEmitter
      *
      * @param ConnectionInterface $connection - client-server connection stream
      */
-    public function handleConnection(ConnectionInterface $connection)
+    public function handleConnection($connection)
     {
         $that = $this;
         $headerBuffer = '';
@@ -110,7 +110,7 @@ class HttpServer extends EventEmitter
     {
         if ($this->isChunkedEncodingActive($request)) {
             // Add ChunkedDecoder to stream
-            $chunkedDecoder = new ChunkedDecoder($connection);
+            $chunkedDecoder = new ChunkedDecoder($connection, $this);
             $bodyStream = new HttpBodyStream($chunkedDecoder);
             $request = $request->withBody($bodyStream);
             $this->handleRequest($connection, $request);
@@ -254,10 +254,6 @@ class HttpServer extends EventEmitter
                     $connection->end();
                     return;
                 }
-
-                $request->getBody()->on('end', function () use ($that, $connection) {
-                    $that->handleConnection($connection);
-                });
             },
             function () use ($connection) {
                 $connection->write(RingCentral\Psr7\str(new Response(500)));

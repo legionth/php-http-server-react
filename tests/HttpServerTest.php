@@ -521,4 +521,40 @@ class HttpServerTest extends TestCase
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
         $this->connection->emit('data', array("\r\n\r\n"));
     }
+
+    public function testChainedChunkedRequests()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $content = '';
+                $request->getBody()->on('data', function ($data) use (&$content){
+                    $content .= $data;
+                });
+
+                $request->getBody()->on('end', function () use ($resolve, &$content) {
+                    $resolve(new Response(200, array('Content-Length' => strlen($content)), $content));
+                });
+            });
+
+                return $promise;
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->exactly(2))->method('write')->withConsecutive(
+            array($this->equalTo("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nbla")),
+            array($this->equalTo("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello"))
+        );
+
+        $request = "GET / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n";
+        $request .= "3\r\nbla\r\n0\r\n\r\n";
+
+        $request .= "GET / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n";
+        $request .= "5\r\nhello\r\n0\r\n\r\n";
+
+        $this->connection->emit('data', array($request));
+    }
 }

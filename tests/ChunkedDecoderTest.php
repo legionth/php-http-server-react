@@ -2,13 +2,32 @@
 
 use React\Stream\ReadableStream;
 use Legionth\React\Http\ChunkedDecoder;
+use RingCentral\Psr7\Response;
+use Legionth\React\Http\HttpServer;
+use React\Socket\Server as Socket;
 
 class ChunkedDecoderTest extends TestCase
 {
+    private $socket;
+    private $server;
+    private $loop;
+
     public function setUp()
     {
+        $this->loop = new React\EventLoop\StreamSelectLoop();
+        $this->socket = new Socket($this->loop);
+
+        $callback = function ($request) {
+            return new Response();
+        };
+
+        $this->server = new HttpServer(
+            $this->socket,
+            $callback
+        );
+
         $this->input = new ReadableStream();
-        $this->parser = new ChunkedDecoder($this->input);
+        $this->parser = new ChunkedDecoder($this->input, $this->server);
     }
 
     public function testSimpleChunk()
@@ -136,7 +155,7 @@ class ChunkedDecoderTest extends TestCase
         $input = $this->getMock('React\Stream\ReadableStreamInterface');
         $input->expects($this->once())->method('pause');
 
-        $parser = new ChunkedDecoder($input);
+        $parser = new ChunkedDecoder($input, $this->server);
         $parser->pause();
     }
 
@@ -145,7 +164,7 @@ class ChunkedDecoderTest extends TestCase
         $input = $this->getMock('React\Stream\ReadableStreamInterface');
         $input->expects($this->once())->method('pause');
 
-        $parser = new ChunkedDecoder($input);
+        $parser = new ChunkedDecoder($input, $this->server);
         $parser->pause();
         $parser->resume();
     }
