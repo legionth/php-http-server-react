@@ -73,6 +73,7 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
             if ($this->maxLength === 0) {
                 $this->emit('end', array());
             }
+            $this->stream->removeListener('data', array($this, 'handleData'));
             // Ignore if the maximum length is reached
             return;
         }

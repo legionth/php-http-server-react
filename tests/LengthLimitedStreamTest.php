@@ -32,7 +32,7 @@ class LengthLimitedStreamTest extends TestCase
         $this->input->emit('data', array("world"));
     }
 
-    public function testZeroLength()
+    public function testZeroLengthInContentLengthWillIgnoreEmittedDataEvents()
     {
         $stream = new LengthLimitedStream($this->input, 0);
         $stream->on('data', $this->expectCallableNever());

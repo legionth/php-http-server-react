@@ -357,14 +357,8 @@ class HttpServerTest extends TestCase
     public function testNonNumericContentLengthResultsInError()
     {
         $callback = function(RequestInterface $request) {
-            $promise = new Promise(function ($resolve, $reject) use ($request) {
-                $request->getBody()->on('end', function() use ($resolve) {
-                    $resolve(new Response());
-                });
-            });
-                return $promise;
+            return new Response();
         };
-
 
         $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: bla\r\n\r\n";
 
@@ -381,14 +375,8 @@ class HttpServerTest extends TestCase
     public function testMultipleValuesInContentLengthResultsInError()
     {
         $callback = function(RequestInterface $request) {
-            $promise = new Promise(function ($resolve, $reject) use ($request) {
-                $request->getBody()->on('end', function() use ($resolve) {
-                    $resolve(new Response());
-                });
-            });
-                return $promise;
+            return new Response();
         };
-
 
         $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: 1\r\nContent-Length: 2\r\n\r\n";
 
@@ -410,10 +398,11 @@ class HttpServerTest extends TestCase
                 $content = '';
 
                 $body->on('data', function($data) use (&$content) {
-                    $content .= $data;
+                    // sould never be called
+                    $content .= 'bla';
                 });
 
-                $request->getBody()->on('end', function() use ($resolve, $content) {
+                $request->getBody()->on('end', function() use ($resolve, &$content) {
                     $resolve(new Response(200, array('Content-Length' => strlen($content)), $content));
                 });
             });
