@@ -20,6 +20,15 @@ class LengthLimitedStreamTest extends TestCase
         $this->input->emit('data', array("hello world"));
     }
 
+    public function testInputStreamKeepsEmitting()
+    {
+        $this->stream->on('data', $this->expectCallableOnceWith('hello'));
+        $this->input->emit('data', array("hello world"));
+        $this->input->emit('data', array("world"));
+        $this->input->emit('data', array("world"));
+    }
+
+
     public function testHandleError()
     {
         $this->stream->on('error', $this->expectCallableOnce());

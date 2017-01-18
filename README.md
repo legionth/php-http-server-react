@@ -224,22 +224,26 @@ when your application received an specific part of the body.
 
 The body of the request object in your callback and middleware function will be a [ReadableStreamInterface](https://github.com/reactphp/stream).
 
+
+The following example will count the string length of the emitted body data. A text in the response body will display the transferred length.
+
 ```php
 $callback = function (RequestInterface $request) {
     $body = $request->getBody();
     
     return new Promise(function ($resolve, $reject) use ($body) {
-        $content = '';
-        $body->on('data', function ($chunk) use ($resolve, &$content) {
-            $content .= "hello";
+        $contentLength = 0;
+        $body->on('data', function ($chunk) use ($resolve, &$contentLength) {
+            $contentLength += strlen($chunk);
         });
 
-        $body->on('end', function () use (&$content, $resolve) {
+        $body->on('end', function () use (&$contentLength, $resolve) {
+            $content = "Transferred data length: " . $contentLength ."\n";
             $resolve(
                 new Response(
                     200,
                     array(
-                        'Content-Length' => strlen($content),
+                        'Content-Length' => strlen(content),
                         'Content-Type' => 'text/html'
                     ),
                     $content

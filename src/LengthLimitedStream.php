@@ -27,7 +27,6 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
         $this->stream->on('end', array($this, 'handleEnd'));
         $this->stream->on('error', array($this, 'handleError'));
         $this->stream->on('close', array($this, 'close'));
-
     }
 
     public function isReadable()
@@ -70,6 +69,11 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
     /** @internal */
     public function handleData($data)
     {
+        if ($this->transferredLength === $this->maxLength) {
+            // Ignore if the maximum length is reached
+            return;
+        }
+
         if (($this->transferredLength + strlen($data)) > $this->maxLength) {
             // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
             $data = (string)substr($data, 0, $this->maxLength - $this->transferredLength);

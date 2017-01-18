@@ -117,6 +117,16 @@ class HttpServer extends EventEmitter
             return;
         }
 
+        if (!$request->hasHeader('Content-Length')) {
+            // Request hasn't defined 'Content-Length' will ignore rest of the request
+            // and ends the stream
+            $bodyStream = new HttpBodyStream($connection);
+            $request = $request->withBody($bodyStream);
+            $this->handleRequest($connection, $request);
+            $bodyStream->emit('end', array());
+            return;
+        }
+
         $contentLength = (int)$request->getHeaderLine('Content-Length');
 
         $stream = new LengthLimitedStream($connection, $contentLength);
@@ -124,13 +134,6 @@ class HttpServer extends EventEmitter
 
         $request = $request->withBody($bodyStream);
         $this->handleRequest($connection, $request);
-
-        if (!$request->hasHeader('Content-Length')) {
-            // Request hasn't defined 'Content-Length' will ignore rest of the request
-            // and ends the stream
-            $bodyStream->emit('end', array());
-            return;
-        }
     }
 
     /** @internal */
@@ -172,7 +175,6 @@ class HttpServer extends EventEmitter
 
         try {
             $response = $this->executeMiddlewareChain($this->middlewares, $request, $callback);
-
             $promise = $response;
             if (!$promise instanceof Promise) {
                 $promise = new Promise(function($resolve, $reject) use ($response){
