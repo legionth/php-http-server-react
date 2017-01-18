@@ -43,7 +43,6 @@ class HttpBodyStream extends EventEmitter implements StreamInterface, ReadableSt
         $this->input->pause();
     }
 
-
     public function resume()
     {
         $this->input->resume();
