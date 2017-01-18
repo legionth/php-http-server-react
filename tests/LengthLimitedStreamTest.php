@@ -2,16 +2,34 @@
 
 use Legionth\React\Http\LengthLimitedStream;
 use React\Stream\ReadableStream;
+use React\Socket\Server as Socket;
+use RingCentral\Psr7\Response;
+use Legionth\React\Http\HttpServer;
 
 class LengthLimitedStreamTest extends TestCase
 {
     private $input;
     private $stream;
+    private $server;
+    private $loop;
+    private $socket;
 
     public function setUp()
     {
+        $this->loop = new React\EventLoop\StreamSelectLoop();
+        $this->socket = new Socket($this->loop);
+
+        $callback = function ($request) {
+            return new Response();
+        };
+
+        $this->server = new HttpServer(
+            $this->socket,
+            $callback
+        );
+
         $this->input = new ReadableStream();
-        $this->stream = new LengthLimitedStream($this->input, 5);
+        $this->stream = new LengthLimitedStream($this->input, 5, $this->server);
     }
 
     public function testSimpleChunk()
@@ -35,7 +53,7 @@ class LengthLimitedStreamTest extends TestCase
         $input = $this->getMock('React\Stream\ReadableStreamInterface');
         $input->expects($this->once())->method('pause');
 
-        $parser = new LengthLimitedStream($input, 0);
+        $parser = new LengthLimitedStream($input, 0, $this->server);
         $parser->pause();
     }
 
@@ -44,7 +62,7 @@ class LengthLimitedStreamTest extends TestCase
         $input = $this->getMock('React\Stream\ReadableStreamInterface');
         $input->expects($this->once())->method('pause');
 
-        $parser = new LengthLimitedStream($input, 0);
+        $parser = new LengthLimitedStream($input, 0, $this->server);
         $parser->pause();
         $parser->resume();
     }

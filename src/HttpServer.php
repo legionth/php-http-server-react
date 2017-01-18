@@ -119,7 +119,7 @@ class HttpServer extends EventEmitter
 
         $contentLength = (int)$request->getHeaderLine('Content-Length');
 
-        $stream = new LengthLimitedStream($connection, $contentLength);
+        $stream = new LengthLimitedStream($connection, $contentLength, $this);
         $bodyStream = new HttpBodyStream($stream);
 
         $request = $request->withBody($bodyStream);
@@ -171,7 +171,6 @@ class HttpServer extends EventEmitter
 
         try {
             $response = $this->executeMiddlewareChain($this->middlewares, $request, $callback);
-
             $promise = $response;
             if (!$promise instanceof Promise) {
                 $promise = new Promise(function($resolve, $reject) use ($response){
@@ -262,7 +261,8 @@ class HttpServer extends EventEmitter
         );
     }
 
-    private function isConnectionPersistent(RequestInterface $request)
+    /** @internal */
+    public function isConnectionPersistent(RequestInterface $request)
     {
         $keepAlive = false;
 

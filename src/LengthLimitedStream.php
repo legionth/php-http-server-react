@@ -18,10 +18,11 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
     /**
      * @param ReadableStreamInterface $input - Stream data from $stream as a body of a PSR-7 object
      */
-    public function __construct(ReadableStreamInterface $stream, $maxLength)
+    public function __construct(ReadableStreamInterface $stream, $maxLength, HttpServer $server)
     {
         $this->stream = $stream;
         $this->maxLength = $maxLength;
+        $this->server = $server;
 
         $this->stream->on('data', array($this, 'handleData'));
         $this->stream->on('end', array($this, 'handleEnd'));
@@ -62,8 +63,6 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
 
         $this->readable = false;
 
-        $this->stream->removeListener('data', array($this, 'handleData'));
-
         $this->emit('end', array($this));
         $this->emit('close', array($this));
         $this->removeAllListeners();
@@ -72,7 +71,9 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
     /** @internal */
     public function handleData($data)
     {
+        $remaingData = '';
         if (($this->transferredLength + strlen($data)) > $this->maxLength) {
+            $remaingData = (string)substr($data, $this->maxLength - $this->transferredLength);
             // Only emit data until the value of 'Content-Length' is reached, the rest will be ignored
             $data = (string)substr($data, 0, $this->maxLength - $this->transferredLength);
         }
@@ -85,6 +86,11 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
         if ($this->transferredLength === $this->maxLength) {
             // 'Content-Length' reached, stream will end
             $this->emit('end', array());
+            if ($remaingData !== '') {
+                $this->stream->removeListener('data', array($this, 'handleData'));
+                $this->server->handleConnection($this->stream);
+                $this->stream->emit('data', array($remaingData));
+            }
         }
     }
 
