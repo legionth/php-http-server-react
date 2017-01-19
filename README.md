@@ -13,6 +13,7 @@ HTTP server written in PHP on top of ReactPHP.
  * [Middleware](#middleware)
   * [Creating your own middleware](#creating-your-own-middleware)
  * [Streaming responses](#streaming-responses)
+ * [Streaming requests](#streaming-requests)
 * [License](#license)
 
 ## Usage
@@ -215,6 +216,48 @@ The `HttpServer` will use the emitted data from the `ReadableStream` to send thi
 If you use the `HttpBodyStream` the whole transfer will be [chunked encoded](https://en.wikipedia.org/wiki/Chunked_transfer_encoding), other values set for `Transfer-Encoding` will be ignored.
 
 Check out the `examples` folder how your computation could look like.
+
+### Streaming requests
+
+Streaming requests makes it possible to send big amount of data in small chunks from the client to the server. E.g you can start the computation of the request,
+when your application received an specific part of the body.
+
+The body of the request object in your callback and middleware function will be a [ReadableStreamInterface](https://github.com/reactphp/stream).
+
+The following example will count the string length of the emitted body data. A text in the response body will display the transferred length.
+
+```php
+$callback = function (RequestInterface $request) {
+    $body = $request->getBody();
+    
+    return new Promise(function ($resolve, $reject) use ($body) {
+        $contentLength = 0;
+        $body->on('data', function ($chunk) use ($resolve, &$contentLength) {
+            $contentLength += strlen($chunk);
+        });
+
+        $body->on('end', function () use (&$contentLength, $resolve) {
+            $content = "Transferred data length: " . $contentLength ."\n";
+            $resolve(
+                new Response(
+                    200,
+                    array(
+                        'Content-Length' => strlen(content),
+                        'Content-Type' => 'text/html'
+                    ),
+                    $content
+                )
+            );
+        });
+    });
+};
+```
+
+The `end` event will be sent when the client transfer is completed.
+
+This is just an example you can use a [BufferedSink](https://github.com/reactphp/stream) from the `reactphp/stream` to avoid these lines of code.
+
+Check out the `examples` folder how your server could look like.
 
 ## Install
 
