@@ -125,18 +125,18 @@ class HttpServer extends EventEmitter
             return;
         }
 
-        $listener = function ($data) use ($request, &$bodyBuffer, $connection, $that, &$listener) {
+        $stream = new LengthLimitedStream($connection, (int)$request->getHeaderLine('Content-Length'));
+
+        $bodyBuffer = '';
+
+        $stream->on('data', function ($data) use (&$bodyBuffer) {
             $bodyBuffer .= $data;
-            $contentLengthArray = $request->getHeader('Content-Length');
+        });
 
-            if (!empty($contentLengthArray) && strlen($bodyBuffer) == $contentLengthArray[0]) {
-                $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
-                $connection->removeListener('data', $listener);
-                $that->handleRequest($connection, $request);
-            }
-        };
-
-        $connection->on('data', $listener);
+        $stream->on('end', function () use (&$bodyBuffer, &$listener, $connection, $that, $request) {
+            $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
+            $that->handleRequest($connection, $request);
+        });
     }
 
     /**
