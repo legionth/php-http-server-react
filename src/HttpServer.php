@@ -106,8 +106,10 @@ class HttpServer extends EventEmitter
         $bodyBuffer = '';
         $that = $this;
 
+        $protection = new CloseProtectionStream($connection);
+
         if ($this->isChunkedEncodingActive($request)) {
-            $chunkedDecoder = new ChunkedDecoder($connection);
+            $chunkedDecoder = new ChunkedDecoder($protection);
             $chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $connection, $that) {
                 $bodyBuffer .= $chunk;
                 if (strlen($chunk) == 0) {
@@ -125,7 +127,7 @@ class HttpServer extends EventEmitter
             return;
         }
 
-        $stream = new LengthLimitedStream($connection, (int)$request->getHeaderLine('Content-Length'));
+        $stream = new LengthLimitedStream($protection, (int)$request->getHeaderLine('Content-Length'));
 
         $bodyBuffer = '';
 
