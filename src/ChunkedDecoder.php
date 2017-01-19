@@ -10,7 +10,7 @@ use Exception;
 class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
 {
     const CRLF = "\r\n";
-    
+
     private $closed = false;
     private $input;
     private $buffer = '';
@@ -51,7 +51,7 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
     {
         $hexValue = strtok($this->buffer . $data, static::CRLF);
         if ($this->isLineComplete($this->buffer . $data, $hexValue, strlen($hexValue))) {
-            
+
             if (dechex(hexdec($hexValue)) != $hexValue) {
                 $this->emit('error', array(new \Exception('Unable to identify ' . $hexValue . 'as hexadecimal number')));
                 $this->close();
@@ -60,7 +60,7 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
 
             $this->chunkSize = hexdec($hexValue);
             $this->chunkHeaderComplete = true;
-            
+
             $data = substr($this->buffer . $data, strlen($hexValue) + 2);
             $this->buffer = '';
             // Chunk header is complete
@@ -106,7 +106,7 @@ class ChunkedDecoder extends EventEmitter implements ReadableStreamInterface
         if ($this->chunkSize == 0 && $this->isLineComplete($this->buffer . $data, $chunk, $this->chunkSize)) {
             $this->emit('end', array());
         }
-        
+
         if (!$this->isLineComplete($this->buffer . $data, $chunk, $this->chunkSize)) {
             $this->emit('error', array(new \Exception('Chunk doesn\'t end with new line delimiter')));
             $this->close();
