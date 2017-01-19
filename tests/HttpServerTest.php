@@ -30,20 +30,20 @@ class HttpServerTest extends TestCase
         $this->httpServer = new HttpServer(
             $this->socket,
             $callback
-        );
+            );
 
         $this->connection = $this->getMockBuilder('React\Socket\Connection')
-            ->disableOriginalConstructor()
-            ->setMethods(
-                array(
-                    'write',
-                    'end',
-                    'close',
-                    'pause',
-                    'resume',
-                    'isReadable',
-                    'isWritable'
-                )
+        ->disableOriginalConstructor()
+        ->setMethods(
+            array(
+                'write',
+                'end',
+                'close',
+                'pause',
+                'resume',
+                'isReadable',
+                'isWritable'
+            )
             )
             ->getMock();
     }
@@ -354,7 +354,55 @@ class HttpServerTest extends TestCase
         $this->connection->emit('data', array($request));
     }
 
-    public function testChunkedEncodedStream()
+    public function testNonNumericContentLengthResultsInError()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $request->getBody()->on('end', function() use ($resolve) {
+                    $resolve(new Response());
+                });
+            });
+                return $promise;
+        };
+
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: bla\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testMultipleValuesInContentLengthResultsInError()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $request->getBody()->on('end', function() use ($resolve) {
+                    $resolve(new Response());
+                });
+            });
+                return $promise;
+        };
+
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: 1\r\nContent-Length: 2\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testContenLenghtWithoutValueButBodyWillBeCutted()
     {
         $callback = function(RequestInterface $request) {
             $promise = new Promise(function ($resolve, $reject) use ($request) {
@@ -362,14 +410,82 @@ class HttpServerTest extends TestCase
                 $content = '';
 
                 $body->on('data', function($data) use (&$content) {
-                    // sould never be called
                     $content .= $data;
                 });
 
-                    $request->getBody()->on('end', function() use ($resolve, &$content) {
+                    $request->getBody()->on('end', function() use ($resolve, $content) {
                         $resolve(new Response(200, array('Content-Length' => strlen($content)), $content));
                     });
             });
+                return $promise;
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\nhello";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testBiggerBodyThanContentLengthWillBeCutted()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $body = $request->getBody();
+                $content = '';
+
+                $body->on('data', function($data) use (&$content) {
+                    $content .= $data;
+                });
+
+                    $body->on('end', function() use (&$content, $resolve) {
+                        $resolve(
+                            new Response(
+                                200,
+                                array('Content-Length' => strlen($content)),
+                                $content
+                                )
+                            );
+                    });
+            });
+
+                return $promise;
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: 5\r\n\r\nhello world";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testSplittedHeader()
+    {
+        $this->socket->emit('connection', array($this->connection));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array("GET /ip HTTP/1.1\r\n"));
+        $this->connection->emit('data', array("me.org\r\n\r\n"));
+    }
+
+    public function testSplittedBody()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $request->getBody()->on('end', function() use ($resolve) {
+                    $resolve(new Response());
+                });
+            });
+
                 return $promise;
         };
 
@@ -378,12 +494,53 @@ class HttpServerTest extends TestCase
 
         $socket->emit('connection', array($this->connection));
 
-        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello world"));
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array("GET /ip HTTP/1.1\r\n"));
+        $this->connection->emit('data', array("Content-Length: 5\r\n"));
+        $this->connection->emit('data', array("me.org\r\n\r\n"));
+        $this->connection->emit('data', array("hel"));
+        $this->connection->emit('data', array("lo"));
+    }
 
-        $this->connection->emit('data', array("GET / HTTP/1.1\r\nHost: me.you\r\nTransfer-Encoding: chunked\r\n\r\n"));
-        $this->connection->emit('data', array("5\r\nhello\r\n"));
-        $this->connection->emit('data', array("6\r\n world\r\n"));
-        $this->connection->emit('data', array("0\r\n\r\n"));
+    public function testDoubleClrfInBeginningOfHeaderWillResultInError()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $request->getBody()->on('end', function() use ($resolve) {
+                    $resolve(new Response());
+                });
+            });
 
+                return $promise;
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+        $this->connection->emit('data', array("\r\n\r\n"));
+    }
+
+    public function testContentLengthIsZeroInRequest()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $request->getBody()->on('end', function() use ($resolve) {
+                    $resolve(new Response());
+                });
+            });
+
+                return $promise;
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->emit('data', array("GET / HTTP/1.1\r\nContent-Length: 0\r\n\r\n"));
     }
 }

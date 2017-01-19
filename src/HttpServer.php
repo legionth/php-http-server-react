@@ -73,7 +73,7 @@ class HttpServer extends EventEmitter
                 try {
                     $request = RingCentral\Psr7\parse_request($fullHeader);
                 } catch (\Exception $ex) {
-                    $that->sendResponse(new Response(400), $connection);
+                    $connection->write(RingCentral\Psr7\str(new Response(400)));
                     return;
                 }
 
@@ -113,28 +113,27 @@ class HttpServer extends EventEmitter
             return;
         }
 
-        $contentLengthArray = $request->getHeader('Content-Length');
-
-        if (!$request->hasHeader('Content-Length') || $contentLengthArray[0] == 0) {
+        if (!$request->hasHeader('Content-Length')) {
+            // Request hasn't defined 'Content-Length' will ignore rest of the request
+            // and ends the stream
+            $bodyStream = new HttpBodyStream($connection);
+            $request = $request->withBody($bodyStream);
             $this->handleRequest($connection, $request);
+            $bodyStream->emit('end', array());
             return;
         }
 
-        $bodyBuffer = '';
-        $that = $this;
+        $contentLength = (int)$request->getHeaderLine('Content-Length');
 
-        $listener = function ($data) use ($request, &$bodyBuffer, $connection, $that, &$listener) {
-            $bodyBuffer .= $data;
-            $contentLengthArray = $request->getHeader('Content-Length');
+        $stream = new LengthLimitedStream($connection, $contentLength);
+        $bodyStream = new HttpBodyStream($stream);
 
-            if (!empty($contentLengthArray) && strlen($bodyBuffer) == $contentLengthArray[0]) {
-                $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
-                $connection->removeListener('data', $listener);
-                $that->handleRequest($connection, $request);
-            }
-        };
+        $request = $request->withBody($bodyStream);
+        $this->handleRequest($connection, $request);
 
-        $connection->on('data', $listener);
+        if ($contentLength === 0) {
+            $stream->emit('end', array());
+        }
     }
 
     /**

@@ -259,8 +259,6 @@ This is just an example you can use a [BufferedSink](https://github.com/reactphp
 
 Check out the `examples` folder how your server could look like.
 
-Hint: Currently only chunked encoded requests are supported.
-
 ## Install
 
 [New to Composer?](https://getcomposer.org/doc/00-intro.md)
