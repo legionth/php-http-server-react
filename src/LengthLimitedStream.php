@@ -69,12 +69,9 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
     /** @internal */
     public function handleData($data)
     {
-        if ($this->transferredLength === $this->maxLength) {
-            if ($this->maxLength === 0) {
-                $this->emit('end', array());
-            }
+        if ($this->maxLength === 0) {
+            $this->emit('end', array());
             $this->stream->removeListener('data', array($this, 'handleData'));
-            // Ignore if the maximum length is reached
             return;
         }
 
@@ -91,6 +88,7 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
         if ($this->transferredLength === $this->maxLength) {
             // 'Content-Length' reached, stream will end
             $this->emit('end', array());
+            $this->stream->removeListener('data', array($this, 'handleData'));
         }
     }
 
