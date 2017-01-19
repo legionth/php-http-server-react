@@ -60,48 +60,84 @@ class HttpServer extends EventEmitter
      */
     public function handleConnection(ConnectionInterface $connection)
     {
-        $bodyBuffer = '';
-        $headerCompleted = false;
-        $bodyCompleted = false;
+        $headerBuffer = '';
         $that = $this;
 
-        $chunkStream = new ReadableStream();
-        $chunkedDecoder = new ChunkedDecoder($chunkStream);
+        $listener =  function ($data) use ($connection, &$headerBuffer, $that, &$listener) {
+            $headerBuffer .= $data;
+            if (strpos($headerBuffer, "\r\n\r\n") !== false) {
+                $connection->removeListener('data', $listener);
+                // header is completed
+                $fullHeader = (string)substr($headerBuffer, 0, strpos($headerBuffer, "\r\n\r\n") + 4);
 
-        $headerStream = new ReadableStream();
-        $headerDecoder = new HeaderDecoder($headerStream);
+                try {
+                    $request = RingCentral\Psr7\parse_request($fullHeader);
+                } catch (\Exception $ex) {
+                    $that->sendResponse(new Response(400), $connection);
+                    return;
+                }
 
-        $connection->on('data', function ($data) use ($connection, &$headerCompleted, &$bodyBuffer, $that, &$chunkedDecoder, &$headerDecoder, $chunkStream, $headerStream) {
-            if (!$headerCompleted) {
-                $headerDecoder->on('data', function ($header) use (&$request, &$data, &$headerCompleted) {
-                    $request = RingCentral\Psr7\parse_request($header);
-                    $data = substr($data, strlen($header));
-                    $headerCompleted = true;
-                });
-                $headerStream->emit('data', array($data));
-            }
+                if ($request->hasHeader('Content-Length')) {
+                    $contentLength = $request->getHeaderLine('Content-Length');
 
-            if (isset($request)) {
-                if ($that->isChunkedEncodingActive($request)) {
-                    $chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $that, $connection) {
-                        $bodyBuffer .= $chunk;
-                        if (strlen($chunk) == 0) {
-                            $that->sendBody($bodyBuffer, $connection, $request);
-                        }
-                    });
-                    $chunkStream->emit('data', array($data));
-                } else {
-                    $bodyBuffer .= $data;
-                    $contentLengthArray = $request->getHeader('Content-Length');
-
-                    if (!empty($contentLengthArray) && strlen($bodyBuffer) == $contentLengthArray[0]) {
-                        $that->sendBody($bodyBuffer, $connection, $request);
-                    } else if (empty($contentLengthArray) || $contentLengthArray[0] == 0) {
-                        $that->handleRequest($connection, $request);
+                    $int = (int) $contentLength;
+                    if ((string)$int !== (string)$contentLength) {
+                        // Send 400 status code if the value of 'Content-Length'
+                        // is not an integer or is duplicated
+                        $connection->write(RingCentral\Psr7\str(new Response(400)));
+                        return;
                     }
                 }
+
+                $that->handleBody($request, $connection);
+
+                // remove header from $data, only body is left
+                $data = (string)substr($data, strlen($fullHeader));
+                if ($data !== '') {
+                    $connection->emit('data', array($data));
+                }
             }
-        });
+        };
+
+        $connection->on('data', $listener);
+    }
+
+    public function handleBody($request, $connection)
+    {
+        $bodyBuffer = '';
+        $that = $this;
+
+        if ($this->isChunkedEncodingActive($request)) {
+            $chunkedDecoder = new ChunkedDecoder($connection);
+            $chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $connection, $that) {
+                $bodyBuffer .= $chunk;
+                if (strlen($chunk) == 0) {
+                    $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
+                    $that->handleRequest($connection, $request);
+                }
+            });
+            return;
+        }
+
+        $contentLengthArray = $request->getHeader('Content-Length');
+
+        if (!$request->hasHeader('Content-Length') || $contentLengthArray[0] == 0) {
+            $this->handleRequest($connection, $request);
+            return;
+        }
+
+        $listener = function ($data) use ($request, &$bodyBuffer, $connection, $that, &$listener) {
+            $bodyBuffer .= $data;
+            $contentLengthArray = $request->getHeader('Content-Length');
+
+            if (!empty($contentLengthArray) && strlen($bodyBuffer) == $contentLengthArray[0]) {
+                $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
+                $connection->removeListener('data', $listener);
+                $that->handleRequest($connection, $request);
+            }
+        };
+
+        $connection->on('data', $listener);
     }
 
     /**
@@ -217,18 +253,5 @@ class HttpServer extends EventEmitter
                 $connection->end();
             }
         );
-    }
-
-    /**
-     * Adds the body to the request before handling the request
-     *
-     * @param string $body - body to be added to the request object
-     * @param ConnectionInterface $connection - client-server connection
-     * @param Request $request - Adds the body to this request object
-     */
-    public function sendBody($body, ConnectionInterface $connection, Request $request)
-    {
-        $request = $request->withBody(RingCentral\Psr7\stream_for($body));
-        $this->handleRequest($connection, $request);
     }
 }
