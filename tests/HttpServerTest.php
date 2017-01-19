@@ -353,4 +353,101 @@ class HttpServerTest extends TestCase
 
         $this->connection->emit('data', array($request));
     }
+    public function testNonNumericContentLengthResultsInError()
+    {
+        $callback = function(RequestInterface $request) {
+            return new Response();
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: bla\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testMultipleValuesInContentLengthResultsInError()
+    {
+        $callback = function(RequestInterface $request) {
+            return new Response();
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: 1\r\nContent-Length: 2\r\n\r\n";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testContenLenghtWithoutValueButBodyWillBeCutted()
+    {
+        $callback = function(RequestInterface $request) {
+            $body = $request->getBody()->__toString();
+            if ($body === '') {
+                return new Response();
+            }
+            return new Response(400);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\n\r\nhello";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testBiggerBodyThanContentLengthWillBeCutted()
+    {
+        $callback = function(RequestInterface $request) {
+            $body = $request->getBody()->__toString();
+            if ($body === 'hello') {
+                return new Response();
+            }
+            return new Response(400);
+        };
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: 5\r\n\r\nhello world";
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+
+        $this->connection->emit('data', array($request));
+    }
+
+    public function testContentLengthInRequestIsZero()
+    {
+        $callback = function(RequestInterface $request) {
+            return new Response();
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+
+        $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: 0\r\n\r\n";
+        $this->connection->emit('data', array($request));
+    }
+
 }
