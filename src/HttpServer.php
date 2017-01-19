@@ -10,10 +10,8 @@ use RingCentral\Psr7\Response;
 use RingCentral\Psr7\Request;
 use React\Socket\ConnectionInterface;
 use RingCentral;
-use React\Stream\ReadableStream;
 use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 use React\Stream\ReadableStreamInterface;
 
 class HttpServer extends EventEmitter
@@ -102,7 +100,8 @@ class HttpServer extends EventEmitter
         $connection->on('data', $listener);
     }
 
-    public function handleBody($request, $connection)
+    /** @internal */
+    public function handleBody(RequestInterface $request, ConnectionInterface $connection)
     {
         $bodyBuffer = '';
         $that = $this;
