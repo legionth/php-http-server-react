@@ -353,4 +353,37 @@ class HttpServerTest extends TestCase
 
         $this->connection->emit('data', array($request));
     }
+
+    public function testChunkedEncodedStream()
+    {
+        $callback = function(RequestInterface $request) {
+            $promise = new Promise(function ($resolve, $reject) use ($request) {
+                $body = $request->getBody();
+                $content = '';
+
+                $body->on('data', function($data) use (&$content) {
+                    // sould never be called
+                    $content .= $data;
+                });
+
+                    $request->getBody()->on('end', function() use ($resolve, &$content) {
+                        $resolve(new Response(200, array('Content-Length' => strlen($content)), $content));
+                    });
+            });
+                return $promise;
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello world"));
+
+        $this->connection->emit('data', array("GET / HTTP/1.1\r\nHost: me.you\r\nTransfer-Encoding: chunked\r\n\r\n"));
+        $this->connection->emit('data', array("5\r\nhello\r\n"));
+        $this->connection->emit('data', array("6\r\n world\r\n"));
+        $this->connection->emit('data', array("0\r\n\r\n"));
+
+    }
 }

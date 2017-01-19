@@ -104,18 +104,12 @@ class HttpServer extends EventEmitter
 
     public function handleBody($request, $connection)
     {
-        $bodyBuffer = '';
-        $that = $this;
-
         if ($this->isChunkedEncodingActive($request)) {
+            // Add ChunkedDecoder to stream
             $chunkedDecoder = new ChunkedDecoder($connection);
-            $chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $connection, $that) {
-                $bodyBuffer .= $chunk;
-                if (strlen($chunk) == 0) {
-                    $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
-                    $that->handleRequest($connection, $request);
-                }
-            });
+            $bodyStream = new HttpBodyStream($chunkedDecoder);
+            $request = $request->withBody($bodyStream);
+            $this->handleRequest($connection, $request);
             return;
         }
 
@@ -125,6 +119,9 @@ class HttpServer extends EventEmitter
             $this->handleRequest($connection, $request);
             return;
         }
+
+        $bodyBuffer = '';
+        $that = $this;
 
         $listener = function ($data) use ($request, &$bodyBuffer, $connection, $that, &$listener) {
             $bodyBuffer .= $data;
