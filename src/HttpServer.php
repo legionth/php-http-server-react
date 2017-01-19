@@ -71,7 +71,7 @@ class HttpServer extends EventEmitter
                 try {
                     $request = RingCentral\Psr7\parse_request($fullHeader);
                 } catch (\Exception $ex) {
-                    $that->sendResponse(new Response(400), $connection);
+                    $connection->write(RingCentral\Psr7\str(new Response(400)));
                     return;
                 }
 
@@ -103,40 +103,36 @@ class HttpServer extends EventEmitter
     /** @internal */
     public function handleBody(RequestInterface $request, ConnectionInterface $connection)
     {
-        $bodyBuffer = '';
-        $that = $this;
-
         if ($this->isChunkedEncodingActive($request)) {
+            // Add ChunkedDecoder to stream
             $chunkedDecoder = new ChunkedDecoder($connection);
-            $chunkedDecoder->on('data', function ($chunk) use (&$bodyBuffer, &$request, $connection, $that) {
-                $bodyBuffer .= $chunk;
-                if (strlen($chunk) == 0) {
-                    $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
-                    $that->handleRequest($connection, $request);
-                }
-            });
-            return;
-        }
-
-        $contentLengthArray = $request->getHeader('Content-Length');
-
-        if (!$request->hasHeader('Content-Length') || $contentLengthArray[0] == 0) {
+            $bodyStream = new HttpBodyStream($chunkedDecoder);
+            $request = $request->withBody($bodyStream);
             $this->handleRequest($connection, $request);
             return;
         }
 
-        $stream = new LengthLimitedStream($connection, (int)$request->getHeaderLine('Content-Length'));
+        if (!$request->hasHeader('Content-Length')) {
+            // Request hasn't defined 'Content-Length' will ignore rest of the request
+            // and ends the stream
+            $bodyStream = new HttpBodyStream($connection);
+            $request = $request->withBody($bodyStream);
+            $this->handleRequest($connection, $request);
+            $bodyStream->emit('end', array());
+            return;
+        }
 
-        $bodyBuffer = '';
+        $contentLength = (int)$request->getHeaderLine('Content-Length');
 
-        $stream->on('data', function ($data) use (&$bodyBuffer) {
-            $bodyBuffer .= $data;
-        });
+        $stream = new LengthLimitedStream($connection, $contentLength);
+        $bodyStream = new HttpBodyStream($stream);
 
-        $stream->on('end', function () use (&$bodyBuffer, &$listener, $connection, $that, $request) {
-            $request = $request->withBody(RingCentral\Psr7\stream_for($bodyBuffer));
-            $that->handleRequest($connection, $request);
-        });
+        $request = $request->withBody($bodyStream);
+        $this->handleRequest($connection, $request);
+
+        if ($contentLength === 0) {
+            $stream->emit('end', array());
+        }
     }
 
     /**
@@ -251,6 +247,6 @@ class HttpServer extends EventEmitter
                 $connection->write(RingCentral\Psr7\str(new Response(500)));
                 $connection->end();
             }
-        );
+            );
     }
 }
