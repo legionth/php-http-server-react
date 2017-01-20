@@ -55,11 +55,11 @@ class CloseProtectionStream extends EventEmitter implements ReadableStreamInterf
 
          $this->closed = true;
 
-         $this->readable = false;
-
-         $this->emit('end', array($this));
          $this->emit('close', array($this));
-         // $this->input won't be closed here just the listeners will be removed
+
+         // 'pause' the stream avoids additional traffic transferred by this stream
+         $this->input->pause();
+
          $this->input->removeListener('data', array($this, 'handleData'));
          $this->input->removeListener('error', array($this, 'handleError'));
          $this->input->removeListener('end', array($this, 'handleEnd'));

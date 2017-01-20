@@ -135,8 +135,6 @@ class CloseProtectionStreamTest extends TestCase
 
         $protection = new CloseProtectionStream($input);
         $protection->on('data', $this->expectCallableNever());
-        // One 'end' will come from 'close'
-        $protection->on('end', $this->expectCallableOnce());
         $protection->on('close', $this->expectCallableOnce());
 
         $protection->close();
