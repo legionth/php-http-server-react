@@ -449,5 +449,4 @@ class HttpServerTest extends TestCase
         $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: 0\r\n\r\n";
         $this->connection->emit('data', array($request));
     }
-
 }

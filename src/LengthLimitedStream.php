@@ -59,7 +59,7 @@ class LengthLimitedStream extends EventEmitter implements ReadableStreamInterfac
 
         $this->closed = true;
 
-        $this->readable = false;
+        $this->stream->close();
 
         $this->emit('end', array($this));
         $this->emit('close', array($this));
