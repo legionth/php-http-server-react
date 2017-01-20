@@ -9,7 +9,6 @@ class CloseProtectionStreamTest extends TestCase
     {
         $input = $this->getMockBuilder('React\Socket\Connection')->disableOriginalConstructor()->getMock();
         $input->expects($this->never())->method('close');
-        $input->expects($this->once())->method('pause');
 
         $protection = new CloseProtectionStream($input);
         $protection->close();
@@ -34,7 +33,8 @@ class CloseProtectionStreamTest extends TestCase
 
         $input->emit('error', array(new \RuntimeException()));
 
-        $this->assertTrue($protection->isReadable());
+        $this->assertFalse($protection->isReadable());
+        $this->assertTrue($input->isReadable());
     }
 
     public function testPauseStream()
@@ -79,5 +79,71 @@ class CloseProtectionStreamTest extends TestCase
         $input->emit('end', array());
 
         $this->assertFalse($protection->isReadable());
+        $this->assertFalse($input->isReadable());
+    }
+
+    public function testSendEndViaPipe()
+    {
+        $input = new ReadableStream();
+
+        $protection = new CloseProtectionStream($input);
+        $protection->on('close', $this->expectCallableOnce());
+
+        $input->close();
+        $input->emit('end', array());
+
+        $this->assertFalse($protection->isReadable());
+    }
+
+    public function testStopEmittingDataAfterClose()
+    {
+        $input = new ReadableStream();
+
+        $protection = new CloseProtectionStream($input);
+        $protection->on('data', $this->expectCallableNever());
+
+        $protection->on('close', $this->expectCallableOnce());
+
+        $protection->close();
+
+        $input->emit('data', array('hello'));
+
+        $this->assertFalse($protection->isReadable());
+        $this->assertTrue($input->isReadable());
+    }
+
+    public function testErrorIsNeverCalledAfterClose()
+    {
+        $input = new ReadableStream();
+
+        $protection = new CloseProtectionStream($input);
+        $protection->on('data', $this->expectCallableNever());
+        $protection->on('error', $this->expectCallableNever());
+        $protection->on('close', $this->expectCallableOnce());
+
+        $protection->close();
+
+        $input->emit('error', array(new Exception()));
+
+        $this->assertFalse($protection->isReadable());
+        $this->assertTrue($input->isReadable());
+    }
+
+    public function testEndWontBeEmittedAfterClose()
+    {
+        $input = new ReadableStream();
+
+        $protection = new CloseProtectionStream($input);
+        $protection->on('data', $this->expectCallableNever());
+        // One 'end' will come from 'close'
+        $protection->on('end', $this->expectCallableOnce());
+        $protection->on('close', $this->expectCallableOnce());
+
+        $protection->close();
+
+        $input->emit('end', array());
+
+        $this->assertFalse($protection->isReadable());
+        $this->assertTrue($input->isReadable());
     }
 }

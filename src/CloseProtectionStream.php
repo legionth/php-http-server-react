@@ -5,6 +5,7 @@ namespace Legionth\React\Http;
 use Evenement\EventEmitter;
 use React\Stream\ReadableStreamInterface;
 use React\Stream\WritableStreamInterface;
+use React\Stream\Util;
 
 /**
  * Protects the passed ReadableStream to be closed
@@ -26,7 +27,7 @@ class CloseProtectionStream extends EventEmitter implements ReadableStreamInterf
 
     public function isReadable()
     {
-        return $this->input->isReadable();
+        return !$this->closed && $this->stream->isReadable();
     }
 
     public function pause()
@@ -41,7 +42,9 @@ class CloseProtectionStream extends EventEmitter implements ReadableStreamInterf
 
     public function pipe(WritableStreamInterface $dest, array $options = array())
     {
-        return $this->input->pipe($dest, $options);
+        Util::pipe($this, $dest, $options);
+
+        return $dest;
     }
 
      public function close()
@@ -52,13 +55,16 @@ class CloseProtectionStream extends EventEmitter implements ReadableStreamInterf
 
          $this->closed = true;
 
-         // ???
-         $this->input->pause();
-
          $this->readable = false;
 
          $this->emit('end', array($this));
          $this->emit('close', array($this));
+         // $this->input won't be closed here just the listeners will be removed
+         $this->input->removeListener('data', array($this, 'handleData'));
+         $this->input->removeListener('error', array($this, 'handleError'));
+         $this->input->removeListener('end', array($this, 'handleEnd'));
+         $this->input->removeListener('close', array($this, 'close'));
+
          $this->removeAllListeners();
      }
 
@@ -71,10 +77,8 @@ class CloseProtectionStream extends EventEmitter implements ReadableStreamInterf
      /** @internal */
      public function handleEnd()
      {
-         if (!$this->closed) {
-             $this->emit('end');
-             $this->close();
-         }
+         $this->emit('end');
+         $this->close();
      }
 
      /** @internal */

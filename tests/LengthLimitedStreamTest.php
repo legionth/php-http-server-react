@@ -90,4 +90,17 @@ class LengthLimitedStreamTest extends TestCase
 
         $this->assertFalse($stream->isReadable());
     }
+
+    public function testOutputStreamCanCloseInputStream()
+    {
+        $input = new ReadableStream();
+        $input->on('close', $this->expectCallableOnce());
+
+        $stream = new LengthLimitedStream($input, 0);
+        $stream->on('close', $this->expectCallableOnce());
+
+        $stream->close();
+
+        $this->assertFalse($input->isReadable());
+    }
 }
