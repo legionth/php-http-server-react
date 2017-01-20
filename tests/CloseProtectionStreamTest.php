@@ -144,4 +144,17 @@ class CloseProtectionStreamTest extends TestCase
         $this->assertFalse($protection->isReadable());
         $this->assertTrue($input->isReadable());
     }
+
+    public function closeEventPausesInputStream()
+    {
+        $input = $this->getMock('React\Stream\ReadableStreamInterface');
+        $input->expects($this->once())->method('pause');
+
+        $protection = new CloseProtectionStream($input);
+        $protection = new CloseProtectionStream($input);
+        $protection->on('data', $this->expectCallableNever());
+        $protection->on('close', $this->expectCallableOnce());
+
+        $protection->close();
+    }
 }
