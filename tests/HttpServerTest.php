@@ -449,4 +449,34 @@ class HttpServerTest extends TestCase
         $request = "GET / HTTP/1.1\r\nHost: me.you\r\nContent-Length: 0\r\n\r\n";
         $this->connection->emit('data', array($request));
     }
+
+    public function testDoubleClrfInBeginningOfHeaderWillResultInError()
+    {
+        $callback = function(RequestInterface $request) {
+            throw new Exception();
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+        $this->connection->emit('data', array("\r\n\r\n"));
+    }
+
+    public function testInvalidRequestResultesInError()
+    {
+        $callback = function(RequestInterface $request) {
+            throw new Exception();
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+        $this->connection->emit('data', array("bla\r\n\r\n"));
+    }
 }
