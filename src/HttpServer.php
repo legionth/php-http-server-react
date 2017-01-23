@@ -72,7 +72,7 @@ class HttpServer extends EventEmitter
                 try {
                     $request = RingCentral\Psr7\parse_request($fullHeader);
                 } catch (\Exception $ex) {
-                    $this->sendResponse(new Response(400), $connection);
+                    $that->sendResponse(new Response(400), $connection);
                     return;
                 }
 
