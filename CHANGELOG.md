@@ -1,8 +1,22 @@
 # Changelog
 
+##0.4.0 (2017-01-23)
+
+* Protect TCP connection against `close` from other streams
+  (#26 by @legionth)
+
+* Filter `Content-Length` requests
+  (#25 by @legionth)
+
+* Add .gitignore 
+  (#23 by @legionth)
+
+* Remove HeaderDecoder from HttpServer
+  (#21 by @legionth)
+
 ## 0.3.0 (2017-01-06)
 
-* Add HTTP body streaming 
+* Add HTTP body streaming
   (#16 by @legionth)
 
 * Add HTTP middleware support
