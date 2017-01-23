@@ -6,6 +6,7 @@ use React\Socket\Server as Socket;
 use RingCentral\Psr7\Response;
 use Psr\Http\Message\RequestInterface;
 use React\Stream\ReadableStream;
+use React\Promise\Promise;
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -23,13 +24,15 @@ $callback = function(RequestInterface $request) use ($loop){
         $stream->emit('end', array('end'));
     });
 
-    $body = new HttpBodyStream($stream);
+    $responseBody = new HttpBodyStream($stream);
 
-    return new Response(
-        200,
-        array(),
-        $body
-    );
+    $promise = new Promise(function ($resolve, $reject) use ($request, &$responseBody) {
+        $request->getBody()->on('end', function () use ($resolve, &$responseBody){
+            $resolve(new Response(200, array(), $responseBody));
+        });
+    });
+
+    return $promise;
 };
 
 $socket = new Socket($loop);
