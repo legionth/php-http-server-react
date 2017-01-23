@@ -8,29 +8,28 @@ use React\Promise\Promise;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$callback = function(RequestInterface $request) {
-
+$callback = function (RequestInterface $request) {
     $body = $request->getBody();
 
     return new Promise(function ($resolve, $reject) use ($body) {
-        $bodyContent = '';
-
-        $body->on('data', function ($chunk) use ($resolve, &$bodyContent) {
-            $bodyContent .= $chunk;
+        $contentLength = 0;
+        $body->on('data', function ($chunk) use ($resolve, &$contentLength) {
+            $contentLength += strlen($chunk);
         });
 
-            $body->on('end', function () use (&$bodyContent, $resolve) {
-                $resolve(
-                    new Response(
-                        200,
-                        array(
-                            'Content-Length' => strlen($bodyContent),
-                            'Content-Type' => 'text/html'
-                        ),
-                        $bodyContent
-                        )
-                    );
-            });
+        $body->on('end', function () use (&$contentLength, $resolve) {
+            $content = "Transferred data length: " . $contentLength ."\n";
+            $resolve(
+                new Response(
+                    200,
+                    array(
+                        'Content-Length' => strlen($content),
+                        'Content-Type' => 'text/html'
+                    ),
+                    $content
+                )
+            );
+        });
     });
 };
 

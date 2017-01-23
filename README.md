@@ -242,7 +242,7 @@ $callback = function (RequestInterface $request) {
                 new Response(
                     200,
                     array(
-                        'Content-Length' => strlen(content),
+                        'Content-Length' => strlen($content),
                         'Content-Type' => 'text/html'
                     ),
                     $content
