@@ -13,6 +13,7 @@ use RingCentral;
 use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
 use React\Stream\ReadableStreamInterface;
+use Psr\Http\Message\ResponseInterface;
 
 class HttpServer extends EventEmitter
 {
@@ -82,7 +83,7 @@ class HttpServer extends EventEmitter
                     if ((string)$int !== (string)$contentLength) {
                         // Send 400 status code if the value of 'Content-Length'
                         // is not an integer or is duplicated
-                        $connection->write(RingCentral\Psr7\str(new Response(400)));
+                        $that->sendResponse(new Response(400), $connection);
                         return;
                     }
                 }
@@ -254,5 +255,11 @@ class HttpServer extends EventEmitter
                 $connection->end();
             }
         );
+    }
+
+    /** @internal */
+    public function sendResponse(ResponseInterface $response, ConnectionInterface $connection)
+    {
+        $connection->write(RingCentral\Psr7\str($response));
     }
 }
