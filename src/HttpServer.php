@@ -72,7 +72,7 @@ class HttpServer extends EventEmitter
                 try {
                     $request = RingCentral\Psr7\parse_request($fullHeader);
                 } catch (\Exception $ex) {
-                    $connection->write(RingCentral\Psr7\str(new Response(400)));
+                    $this->sendResponse(new Response(400), $connection);
                     return;
                 }
 
@@ -104,9 +104,10 @@ class HttpServer extends EventEmitter
     /** @internal */
     public function handleBody(RequestInterface $request, ConnectionInterface $connection)
     {
+        $protection = new CloseProtectionStream($connection);
         if ($this->isChunkedEncodingActive($request)) {
             // Add ChunkedDecoder to stream
-            $chunkedDecoder = new ChunkedDecoder($connection);
+            $chunkedDecoder = new ChunkedDecoder($protection);
             $bodyStream = new HttpBodyStream($chunkedDecoder);
             $request = $request->withBody($bodyStream);
             $this->handleRequest($connection, $request);
@@ -116,16 +117,16 @@ class HttpServer extends EventEmitter
         if (!$request->hasHeader('Content-Length')) {
             // Request hasn't defined 'Content-Length' will ignore rest of the request
             // and ends the stream
-            $bodyStream = new HttpBodyStream($connection);
+            $bodyStream = new HttpBodyStream($protection);
             $request = $request->withBody($bodyStream);
             $this->handleRequest($connection, $request);
-            $bodyStream->emit('end', array());
+            $bodyStream->close();
             return;
         }
 
         $contentLength = (int)$request->getHeaderLine('Content-Length');
 
-        $stream = new LengthLimitedStream($connection, $contentLength);
+        $stream = new LengthLimitedStream($protection, $contentLength);
         $bodyStream = new HttpBodyStream($stream);
 
         $request = $request->withBody($bodyStream);
