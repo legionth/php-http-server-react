@@ -638,4 +638,61 @@ class HttpServerTest extends TestCase
 
         $this->connection->emit('data', array("GET / HTTP/1.1\r\n\r\n"));
     }
+
+    public function testReceiveResponseAndTcpConnectionCantSendFurtherData()
+    {
+        $callback = function (RequestInterface $request) {
+            return new Response();
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->expects($this->once())->method('end');
+        $this->connection->expects($this->once())->method('pause');
+        $this->connection->expects($this->never())->method('resume');
+
+        $this->connection->emit('data', array("GET / HTTP/1.1\r\n\r\n"));
+    }
+
+    public function testSendContentLengthRequestReceiveResponseAndTcpConnectionCantSendFurtherData()
+    {
+        $callback = function (RequestInterface $request) {
+            return new Response();
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->expects($this->once())->method('end');
+        $this->connection->expects($this->once())->method('pause');#
+        $this->connection->expects($this->never())->method('resume');
+
+        $this->connection->emit('data', array("GET / HTTP/1.1\r\nContent-Length: 3\r\n\r\nbla"));
+    }
+
+    public function testSendChunkedEncodedRequestReceiveResponseAndTcpConnectionCantSendFurtherData()
+    {
+        $callback = function (RequestInterface $request) {
+            return new Response();
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->expects($this->once())->method('end');
+        $this->connection->expects($this->once())->method('pause');
+        $this->connection->expects($this->never())->method('resume');
+
+        $this->connection->emit('data', array("GET / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nbla\r\n0\r\n\r\n"));
+    }
 }
