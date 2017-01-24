@@ -33,6 +33,36 @@ Create your own callback function to react on responses as you wish (e.g. check 
 send the response). But be careful, blocking operations like database or file operations can lead to
 a slow down server.
 
+```php
+$callback = function (RequestInterface $request) {
+    $content = '<html>
+<body>
+    <h1> Hello World! </h1>
+    <p> This is your own little server. Written in PHP :-) </p>
+</body>
+</html>';
+
+    return new Response(
+        200,
+        array(
+            'Content-Length' => strlen($content),
+            'Content-Type' => 'text/html'
+        ),
+        $content
+    );
+};
+
+$socket = new Socket($loop);
+$socket->listen(10000, 'localhost');
+
+$server = new HttpServer($socket, $callback);
+$loop->run();
+```
+
+This example will respond with a simple HTML site on every request send to this server. But this will always send a response to the client as soon the header of the request
+has arrived at the server. If the request consists of body data, these will be ignored and the TCP connection will be closed as the response is sent to the client.
+To handle the body data you have to use streams.
+
 Every version after `v0.4.0` will stream requests. This means the body of the request object of your callback function.
 
 Streaming requests makes it possible to send big amount of data in small chunks from the client to the server. E.g you can start the computation of the request,
@@ -40,19 +70,48 @@ when your application received an specific part of the body.
 
 The body of the request object in your callback and middleware function will be a [ReadableStreamInterface](https://github.com/reactphp/stream).
 
-The following example will count the string length of the emitted body data. A text in the response body will display the transferred length.
+Every request body stream will send an end event when the stream is successfully completed. We have to use a [promise](https://github.com/reactphp/promise) to ensure that the
+response only will be send to the client when the request stream is finished.
+
+The next example will do the same as the previous example, but will wait until the request stream will be finished.
 
 ```php
 $callback = function (RequestInterface $request) {
-    $body = $request->getBody();
-    
+    return new Promise(function ($resolve, $reject) use ($request) {
+        $request->getBody->on('end', function () use (&$contentLength, $resolve) {
+            $content = '<html>
+<body>
+    <h1> Hello World! </h1>
+    <p> This is your own little server. Written in PHP :-) </p>
+</body>
+</html>';
+
+            return new Response(
+                200,
+                array(
+                    'Content-Length' => strlen($content),
+                    'Content-Type' => 'text/html'
+                ),
+                $content
+            );
+        });
+    };
+}
+```
+
+The body of the request will always be a stream. So it can be used like a stream.
+In the following example a listener will be added to the 'data' event, which will count just the transferred string data length.
+At the end of the body stream the length of the transferred data will be send in an text via a HTTP response to the client.
+
+```php
+$callback = function (RequestInterface $request) {
     return new Promise(function ($resolve, $reject) use ($body) {
         $contentLength = 0;
-        $body->on('data', function ($chunk) use ($resolve, &$contentLength) {
+        $request->getBody()->on('data', function ($chunk) use ($resolve, &$contentLength) {
             $contentLength += strlen($chunk);
         });
 
-        $body->on('end', function () use (&$contentLength, $resolve) {
+        $request->getBody()->on('end', function () use (&$contentLength, $resolve) {
             $content = "Transferred data length: " . $contentLength ."\n";
             $resolve(
                 new Response(
@@ -66,16 +125,8 @@ $callback = function (RequestInterface $request) {
             );
         });
     });
-
-    $socket = new Socket($loop);
-    $socket->listen(10000, 'localhost');
-
-    $server = new HttpServer($socket, $callback);
-    $loop->run();
 };
 ```
-
-The `end` event will be sent when the client transfer is completed.
 
 This is just an example you can use a [BufferedSink](https://github.com/reactphp/stream) from the `reactphp/stream` to avoid these lines of code.
 
