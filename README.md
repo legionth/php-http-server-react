@@ -128,7 +128,7 @@ The next chain link would be another middleware or the callback function at the 
 Otherwise the `HttpServer` will return a "500 Internal Server Error" message.
 The middleware can not only manipulate the request objects, but also the response objects returned by the other added middleware or the callback function.
 
-This is similiar to the conecept of [the fig standards](https://github.com/php-fig/fig-standards/blob/master/proposed/http-middleware/middleware-meta.md).
+This is similiar to the concept of [the fig standards](https://github.com/php-fig/fig-standards/blob/master/proposed/http-middleware/middleware-meta.md).
 
 Add as many middlewares as you want you just need to follow the following design
 
