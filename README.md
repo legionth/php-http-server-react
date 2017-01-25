@@ -99,7 +99,9 @@ $callback = function (RequestInterface $request) {
 }
 ```
 
-The body of the request will always be a stream. So it can be used like a stream.
+The body of the request will always be a [ReactPHP stream](https://github.com/reactphp/stream). The PSR-7 methods of the [StreamInterface](http://www.php-fig.org/psr/psr-7/#streams)
+are currently not needed and have no function at this point of development, but they may have in the further development.
+
 In the following example a listener will be added to the 'data' event, which will count just the transferred string data length.
 At the end of the body stream the length of the transferred data will be send in an text via a HTTP response to the client.
 
