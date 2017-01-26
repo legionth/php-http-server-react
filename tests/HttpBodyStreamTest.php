@@ -60,6 +60,17 @@ class HttpBodyStreamTest extends TestCase
         $this->assertFalse($this->bodyStream->isReadable());
     }
 
+    public function testStopDataEmittingAfterClose()
+    {
+        $bodyStream = new HttpBodyStream($this->input);
+        $bodyStream->on('close', $this->expectCallableOnce());
+        $this->bodyStream->on('data', $this->expectCallableOnce(array("hello")));
+
+        $this->input->emit('data', array("hello"));
+        $bodyStream->close();
+        $this->input->emit('data', array("world"));
+    }
+
     public function testHandleError()
     {
         $this->bodyStream->on('error', $this->expectCallableOnce());
