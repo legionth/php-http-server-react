@@ -29,17 +29,17 @@ $callback = function (RequestInterface $request) {
 };
 
 $socket = new Socket($loop);
-$socket = new SecureServer($socket, $loop,
-    array(
-        'local_cert' => 'server.pem',
-        'local_pk' => 'server.key'
-    )
+$secureSocket = new SecureServer(
+    $socket,
+    $loop,
+    array('local_cert' => 'secret.pem')
 );
-$socket->listen(10000, 'localhost');
-$socket->on('error', function (Exception $e) {
+
+$secureSocket->listen(10000, 'localhost');
+$secureSocket->on('error', function (Exception $e) {
     echo 'Error' . $e->getMessage() . PHP_EOL;
 });
 
-$server = new HttpServer($socket, $callback);
+$server = new HttpServer($secureSocket, $callback);
 
 $loop->run();
