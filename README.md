@@ -13,6 +13,7 @@ HTTP server written in PHP on top of ReactPHP.
  * [Middleware](#middleware)
   * [Creating your own middleware](#creating-your-own-middleware)
  * [Streaming responses](#streaming-responses)
+ * [Create proxy server](#create-a-proxy-server)
 * [License](#license)
 
 ## Usage
@@ -308,6 +309,13 @@ The `HttpServer` will use the emitted data from the `ReadableStream` to send thi
 If you use the `HttpBodyStream` the whole transfer will be [chunked encoded](https://en.wikipedia.org/wiki/Chunked_transfer_encoding), other values set for `Transfer-Encoding` will be ignored.
 
 Check out the `examples` folder how your computation could look like.
+
+### Create a proxy server
+
+You can make a proxy server out of this package.
+Just use the callback function to validate the destination of your request to create a TCP connection and forward the request.
+
+Check out the `examples` folder how a simple proxy server could look like.
 
 ## Install
 
