@@ -256,5 +256,7 @@ class HttpServer extends EventEmitter
     public function sendResponse(ResponseInterface $response, ConnectionInterface $connection)
     {
         $connection->write(RingCentral\Psr7\str($response));
+        $connection->pause();
+        $connection->end();
     }
 }

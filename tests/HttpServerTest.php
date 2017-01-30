@@ -385,6 +385,9 @@ class HttpServerTest extends TestCase
         $socket->emit('connection', array($this->connection));
 
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+        $this->connection->expects($this->once())->method('end');
+        $this->connection->expects($this->once())->method('pause');
+        $this->connection->expects($this->never())->method('resume');
 
         $this->connection->emit('data', array($request));
     }
@@ -521,6 +524,10 @@ class HttpServerTest extends TestCase
         $socket->emit('connection', array($this->connection));
 
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+        $this->connection->expects($this->once())->method('end');
+        $this->connection->expects($this->once())->method('pause');
+        $this->connection->expects($this->never())->method('resume');
+
         $this->connection->emit('data', array("\r\n\r\n"));
     }
 
@@ -536,6 +543,10 @@ class HttpServerTest extends TestCase
         $socket->emit('connection', array($this->connection));
 
         $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 400 Bad Request\r\n\r\n"));
+        $this->connection->expects($this->once())->method('end');
+        $this->connection->expects($this->once())->method('pause');
+        $this->connection->expects($this->never())->method('resume');
+
         $this->connection->emit('data', array("bla\r\n\r\n"));
     }
 
