@@ -25,7 +25,7 @@ $callback = function (RequestInterface $request) {
             'Content-Type' => 'text/html'
         ),
         $content
-        );
+    );
 };
 
 $socket = new Socket($loop);
