@@ -13,6 +13,7 @@ HTTP server written in PHP on top of ReactPHP.
  * [Middleware](#middleware)
   * [Creating your own middleware](#creating-your-own-middleware)
  * [Streaming responses](#streaming-responses)
+ * [HTTPS server](#https-server)
 * [License](#license)
 
 ## Usage
@@ -308,6 +309,34 @@ The `HttpServer` will use the emitted data from the `ReadableStream` to send thi
 If you use the `HttpBodyStream` the whole transfer will be [chunked encoded](https://en.wikipedia.org/wiki/Chunked_transfer_encoding), other values set for `Transfer-Encoding` will be ignored.
 
 Check out the `examples` folder how your computation could look like.
+
+### HTTPS Server
+
+The HTTP server can be set to an HTTPS server by using the [SecureServer from the socket package of ReactPHP](https://github.com/reactphp/socket#secureserver).
+
+Following example shows how you can use this:
+
+```php
+$socket = new Socket($loop);
+$secureSocket = new SecureServer(
+    $socket,
+    $loop,
+    array('local_cert' => 'secret.pem')
+);
+
+$secureSocket->listen(10000, 'localhost');
+
+$secureSocket->on('error', function (Exception $e) {
+    echo 'Error: ' . $e->getMessage() . PHP_EOL;
+});
+
+$server = new HttpServer($secureSocket, $callback);
+```
+
+Check out the `examples` folder how your HTTPS server could look like.
+
+To execute the example you have to use a self-signed certificate. You can use the 
+[script to generate a self-signed certificate](https://github.com/reactphp/socket/blob/master/examples/10-generate-self-signed.php)
 
 ## Install
 
