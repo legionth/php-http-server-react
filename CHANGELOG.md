@@ -1,6 +1,20 @@
 # Changelog
 
-##0.4.0 (2017-01-23)
+## 0.5.0 (2017-01-31)
+
+* Fix missing termination of connection in `sendResponse`method
+  (#32 by legionth)
+
+* Typo in middleware section
+  (#30 by WyriHaximus)
+
+* Fix missing sendResponse method
+  (#29 by legionth)
+
+* Streaming requests
+  (#27 by legionth)
+
+## 0.4.0 (2017-01-23)
 
 * Protect TCP connection against `close` from other streams
   (#26 by @legionth)
