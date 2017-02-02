@@ -4,16 +4,15 @@ HTTP server written in PHP on top of ReactPHP.
 
 **Table of Contents**
 * [Usage](#usage)
- * [HttpServer](#httpserver)
-  * [Create callback function](#create-a-callback-function)
- * [ChunkedDecoder](#chunkeddecoder)
- * [HeaderDecoder](#headerdecoder)
- * [Handling exceptions](#handling-exceptions)
- * [Return type of the callback function](#return-type-of-the-callback-function)
- * [Middleware](#middleware)
-  * [Creating your own middleware](#creating-your-own-middleware)
- * [Streaming responses](#streaming-responses)
- * [HTTPS server](#https-server)
+  * [HttpServer](#httpserver)
+    * [Create callback function](#create-a-callback-function)
+  * [ChunkedDecoder](#chunkeddecoder)
+  * [Handling exceptions](#handling-exceptions)
+  * [Return type of the callback function](#return-type-of-the-callback-function)
+  * [Middleware](#middleware)
+    * [Creating your own middleware](#creating-your-own-middleware)
+  * [Streaming responses](#streaming-responses)
+  * [HTTPS server](#https-server)
 * [License](#license)
 
 ## Usage
@@ -142,10 +141,6 @@ Check out the `examples` folder how your server could look like.
 The `ChunkedDecoder` is used to decode the single chunks send by a HTTP request with a `Transfer-Encoding: chunked`. The HTTP server will send the encoded body to the callback function.
 
 This class is based on [ReactPHP streams](https://github.com/reactphp/stream). The `HttpServer` will save the chunks until the body is completed and will forward the decoded request to the callback function.
-
-### HeaderDecoder
-
-The `HeaderDecoder` is used to decode and identify the header of a request. The header will be send when the header is completed which is marked by `\r\n\r\n`.
 
 #### Handling exceptions
 
