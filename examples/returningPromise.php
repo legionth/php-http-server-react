@@ -4,6 +4,7 @@ use Legionth\React\Http\HttpServer;
 use React\Socket\Server as Socket;
 use React\Promise\Promise;
 use RingCentral\Psr7\Response;
+use Psr\Http\Message\RequestInterface;
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -16,7 +17,7 @@ $pseudoHeavyCalculation = function ($resolve) use ($loop){
     });
 };
 
-$callback = function() use ($loop, $pseudoHeavyCalculation) {
+$callback = function(RequestInterface $request) use ($loop, $pseudoHeavyCalculation) {
     return new Promise(function($resolve, $reject) use ($loop, $pseudoHeavyCalculation) {
         $pseudoHeavyCalculation($resolve);
     });
