@@ -136,6 +136,12 @@ This example just streams the body of the request. The body of the response can 
 
 Check out the `examples` folder how your server could look like.
 
+The first parameter (often written as `RequestInterface $request` in examples and tests) 
+of the callback function and a middleware is a `ServerRequest` object based on the 
+[PSR-7 ServerRequestInterface](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-7-http-message.md#15-server-side-requests).
+
+Thus the callback function or middlewares can add additional server-side parameters.
+
 ### ChunkedDecoder
 
 The `ChunkedDecoder` is used to decode the single chunks send by a HTTP request with a `Transfer-Encoding: chunked`. The HTTP server will send the encoded body to the callback function.
