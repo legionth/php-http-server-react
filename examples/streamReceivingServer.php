@@ -33,7 +33,7 @@ $callback = function(RequestInterface $request) {
     });
 };
 
-$badWordFilterMiddleware = function ($request, $next) {
+$badWordFilterMiddleware = function (RequestInterface $request, callable $next) {
     $responseBody = $request->getBody();
 
     $responseBody->on('data', function ($data, $responseBody) {

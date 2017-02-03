@@ -139,10 +139,10 @@ class HttpServer extends EventEmitter
 
     /**
      * Checks if the 'Transfer-Encoding: chunked' is set anywhere in the header
-     * @param Request $request - user request object containing the header
+     * @param RequestInterface $request - user request object containing the header
      * @return boolean
      */
-    public function isChunkedEncodingActive(Request $request)
+    public function isChunkedEncodingActive(RequestInterface $request)
     {
         $transferEncodingArray = $request->getHeader('Transfer-Encoding');
 
@@ -161,9 +161,9 @@ class HttpServer extends EventEmitter
      *
      * @param ConnectionInterface $connection - connection between user and server, the response will be written
      *                                          on this connection
-     * @param Request $request - User request to be handled by the callback function
+     * @param RequestInterface $request - User request to be handled by the callback function
      */
-    public function handleRequest(ConnectionInterface $connection, Request $request)
+    public function handleRequest(ConnectionInterface $connection, RequestInterface $request)
     {
         $callback = $this->callback;
 
@@ -196,7 +196,7 @@ class HttpServer extends EventEmitter
     {
         $firstCallback = array_shift($middlewareChain);
 
-        $next = function (Request $request) use (&$middlewareChain, $callback, &$next) {
+        $next = function (RequestInterface $request) use (&$middlewareChain, $callback, &$next) {
             if (empty($middlewareChain)) {
                 return $callback($request);
             }

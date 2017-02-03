@@ -154,7 +154,7 @@ Example:
 
 $loop = React\EventLoop\Factory::create();
 
-$callback = function (Request $request) use ($loop) {
+$callback = function (RequestInterface $request) use ($loop) {
     throw new Exception();
 };
 
@@ -190,7 +190,7 @@ a [promise](https://github.com/reactphp/promise).
 For heavy calculations you should consider using promises. Not using them can slow down the server.
 
 ```php
-$callback = function (Request $request) {
+$callback = function (RequestInterface $request) {
     return new Promise(function ($resolve, $reject) use ($request) {
         $request->getBody()->on('end', function () {
             $response = heavyCalculationFunction();
