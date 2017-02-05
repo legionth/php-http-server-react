@@ -10,6 +10,7 @@ use Psr\Http\Message\RequestInterface;
 use Legionth\React\Http\HttpBodyStream;
 use React\Stream\ReadableStream;
 use Legionth\React\Http\ServerRequest;
+use Psr\Http\Message\ServerRequestInterface;
 
 class HttpServerTest extends TestCase
 {
@@ -710,11 +711,7 @@ class HttpServerTest extends TestCase
 
     public function testServerRequestWillBeUsedForCallable()
     {
-        $callback = function (RequestInterface $request) {
-            if (! method_exists($request, 'getCookieParams')) {
-                throw new Exception();
-                return;
-            }
+        $callback = function (ServerRequestInterface $request) {
             return new Response();
         };
 
@@ -733,18 +730,17 @@ class HttpServerTest extends TestCase
 
     public function testServerRequestCanBeUsedInMiddleware()
     {
-        $callback = function (RequestInterface $request) {
+        $callback = function (ServerRequestInterface $request) {
             $cookies = $request->getCookieParams();
 
             if ($cookies['hello'] !== 'world') {
                 throw new Exception();
-                return;
             }
 
             return new Response();
         };
 
-        $middleware = function (RequestInterface $request, $next) {
+        $middleware = function (ServerRequestInterface $request, $next) {
             $request = $request->withCookieParams(array('hello' => 'world'));
             return $next($request);
         };

@@ -3,9 +3,9 @@
 namespace Legionth\React\Http;
 
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\StreamInterface;
 use RingCentral\Psr7\Request;
 
+/** @internal */
 class ServerRequest extends Request implements ServerRequestInterface
 {
     private $attributes = array();
@@ -15,34 +15,6 @@ class ServerRequest extends Request implements ServerRequestInterface
     private $cookies;
     private $queryParams;
     private $parsedBody;
-
-    public function __construct(
-        $method = null,
-        $uri = '',
-        array $headers = array(),
-        StreamInterface $body = null,
-        $protocol = '1.1',
-        array $serverParams = array(),
-        array $fileParams = array(),
-        array $cookies = array(),
-        array $queryParams = array(),
-        $parsedBody = null
-    )
-    {
-        $this->serverParams = $serverParams;
-        $this->fileParams = $fileParams;
-        $this->cookies = $cookies;
-        $this->queryParams = $queryParams;
-        $this->parsedBody = $parsedBody;
-
-        parent::__construct(
-            $method,
-            $uri,
-            $headers,
-            $body,
-            $protocol
-        );
-    }
 
     public function getServerParams()
     {
