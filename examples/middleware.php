@@ -3,11 +3,11 @@
 use Legionth\React\Http\HttpServer;
 use React\Socket\Server as Socket;
 use RingCentral\Psr7\Response;
-use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$callback = function($request) {
+$callback = function(ServerRequestInterface $request) {
     $body = '
 <html>
 <body>
@@ -29,7 +29,7 @@ $loop = React\EventLoop\Factory::create();
 $socket = new Socket($loop);
 $socket->listen(10000, 'localhost');
 
-$middlewareTimeBlocking = function (RequestInterface $request, callable $next) {
+$middlewareTimeBlocking = function (ServerRequestInterface $request, callable $next) {
     // This middleware only allows the call of callback function
     // only between 00:00 am and 01:00 am
     if ((int)date('Hi') < 100 && (int)date('Hi') > 0) {
@@ -52,12 +52,12 @@ $middlewareTimeBlocking = function (RequestInterface $request, callable $next) {
         $body);
 };
 
-$middlewareAddLanguageHeader = function (RequestInterface $request, callable $next) {
+$middlewareAddLanguageHeader = function (ServerRequestInterface $request, callable $next) {
     $request = $request->withAddedHeader('Language', 'german');
     return $next($request);
 };
 
-$middlewareAddDateHeaderToResponse = function (RequestInterface $request, callable $next) {
+$middlewareAddDateHeaderToResponse = function (ServerRequestInterface $request, callable $next) {
     $response = $next($request);
     $response = $response->withAddedHeader('Date', date('Y-m-d'));
     return $response;

@@ -4,7 +4,7 @@ use Legionth\React\Http\HttpServer;
 use Legionth\React\Http\HttpBodyStream;
 use React\Socket\Server as Socket;
 use RingCentral\Psr7\Response;
-use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use React\Stream\ReadableStream;
 use React\Promise\Promise;
 
@@ -12,7 +12,7 @@ require __DIR__ . '/../vendor/autoload.php';
 
 $loop = React\EventLoop\Factory::create();
 
-$callback = function(RequestInterface $request) use ($loop){
+$callback = function(ServerRequestInterface $request) use ($loop){
     $stream = new ReadableStream();
 
     $periodicTimer = $loop->addPeriodicTimer(0.5, function () use ($stream) {

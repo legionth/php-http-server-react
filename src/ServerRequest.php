@@ -10,11 +10,11 @@ class ServerRequest extends Request implements ServerRequestInterface
 {
     private $attributes = array();
 
-    private $serverParams;
-    private $fileParams;
-    private $cookies;
-    private $queryParams;
-    private $parsedBody;
+    private $serverParams = array();
+    private $fileParams = array();
+    private $cookies = array();
+    private $queryParams = array();
+    private $parsedBody = null;
 
     public function getServerParams()
     {
