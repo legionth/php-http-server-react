@@ -34,7 +34,7 @@ send the response). But be careful, blocking operations like database or file op
 a slow down server.
 
 ```php
-$callback = function (RequestInterface $request) {
+$callback = function (ServerRequestInterface $request) {
     $content = '<html>
 <body>
     <h1> Hello World! </h1>
@@ -76,7 +76,7 @@ response only will be send to the client when the request stream is finished.
 The next example will do the same as the previous example, but will wait until the request stream will be finished.
 
 ```php
-$callback = function (RequestInterface $request) {
+$callback = function (ServerRequestInterface $request) {
     return new Promise(function ($resolve, $reject) use ($request) {
         $request->getBody->on('end', function () use (&$contentLength, $resolve) {
             $content = '<html>
@@ -106,7 +106,7 @@ In the following example a listener will be added to the 'data' event, which wil
 At the end of the body stream the length of the transferred data will be send in an text via a HTTP response to the client.
 
 ```php
-$callback = function (RequestInterface $request) {
+$callback = function (ServerRequestInterface $request) {
     return new Promise(function ($resolve, $reject) use ($body) {
         $contentLength = 0;
         $request->getBody()->on('data', function ($chunk) use ($resolve, &$contentLength) {
@@ -134,6 +134,9 @@ This is just an example you can use a [BufferedSink](https://github.com/reactphp
 
 This example just streams the body of the request. The body of the response can alseo be streamed. Check out the [Streaming responses](#streaming-responses) chapter.
 
+The [ServerRequestInterface](http://www.php-fig.org/psr/psr-7/#server-side-requests) MUST be used  as first parameter in the callback and middleware functions.
+The parameters of the request have the default values defined by the PSR-7 Interface and can be changed by the middleware.
+
 Check out the `examples` folder how your server could look like.
 
 ### ChunkedDecoder
@@ -154,7 +157,7 @@ Example:
 
 $loop = React\EventLoop\Factory::create();
 
-$callback = function (Request $request) use ($loop) {
+$callback = function (ServerRequestInterface $request) use ($loop) {
     throw new Exception();
 };
 
@@ -172,7 +175,7 @@ catch your exception and create your own Response Object with header and body.
 
 ```php
 <?php
-$callback = function ($request) {
+$callback = function (ServerRequestInterface $request) {
     try {
         //something that could go wrong
     } catch(Exception $exception) {
@@ -190,7 +193,7 @@ a [promise](https://github.com/reactphp/promise).
 For heavy calculations you should consider using promises. Not using them can slow down the server.
 
 ```php
-$callback = function (Request $request) {
+$callback = function (ServerRequestInterface $request) {
     return new Promise(function ($resolve, $reject) use ($request) {
         $request->getBody()->on('end', function () {
             $response = heavyCalculationFunction();
@@ -220,11 +223,11 @@ This is similiar to the concept of [the fig standards](https://github.com/php-fi
 Add as many middlewares as you want you just need to follow the following design
 
 ```php
-$callback = function (RequestInterface $request) {
+$callback = function (ServerRequestInterface $request) {
     return new Response();
 }
 
-$middleware = function (RequestInterface $request, callable $next) {
+$middleware = function (ServerRequestInterface $request, callable $next) {
     // check or maninpulate the request object
     ...
     // call of next middleware chain link
@@ -243,7 +246,7 @@ The added middleware will be executed the order you added them.
 ```php
 ...
 
-$timeBlockingMiddleware = function (RequestInterface $request, callable $next) {
+$timeBlockingMiddleware = function (ServerRequestInterface $request, callable $next) {
     // Will call the next middleware from 00:00 till 16:00
     // otherwise an 403 Forbidden response will be sent to the client
     if (((int)date('Hi') < 1600 && (int)date('Hi') > 0) {
@@ -252,12 +255,12 @@ $timeBlockingMiddleware = function (RequestInterface $request, callable $next) {
     return new Response(403);
 };
 
-$addHeaderToRequest = function (RequestInterface $request, callable $next) {
+$addHeaderToRequest = function (ServerRequestInterface $request, callable $next) {
     $request = $request->withAddedHeader('Date', date('Y-m-d'));
     return $next($request);
 };
 
-$addHeaderToResponse = function (RequestInterface $request, callable $next) {
+$addHeaderToResponse = function (ServerRequestInterface $request, callable $next) {
     $response = $next($request);
     $response = $response->withAddedHeader('Age', '12');
     return $response;
@@ -283,7 +286,7 @@ Streaming makes it possible to send big amount of data in small chunks to the cl
 Use an instance of the `HttpBodyStream` and use this instance as the body for `Response` object you want to return.
 
 ```php
-$callback = function (RequestInterface $request) {
+$callback = function (ServerRequestInterface $request) {
     $input = new ReadableStream();
     $responseBody = new HttpBodyStream($input);
     
