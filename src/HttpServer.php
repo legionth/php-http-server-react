@@ -88,6 +88,14 @@ class HttpServer extends EventEmitter
                     }
                 }
 
+                $request = new ServerRequest(
+                    $request->getMethod(),
+                    $request->getUri(),
+                    $request->getHeaders(),
+                    $request->getBody(),
+                    $request->getProtocolVersion()
+                );
+
                 $that->handleBody($request, $connection);
 
                 // remove header from $data, only body is left

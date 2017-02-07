@@ -9,6 +9,8 @@ use React\Promise\Promise;
 use Psr\Http\Message\RequestInterface;
 use Legionth\React\Http\HttpBodyStream;
 use React\Stream\ReadableStream;
+use Legionth\React\Http\ServerRequest;
+use Psr\Http\Message\ServerRequestInterface;
 
 class HttpServerTest extends TestCase
 {
@@ -705,5 +707,55 @@ class HttpServerTest extends TestCase
         $this->connection->expects($this->never())->method('resume');
 
         $this->connection->emit('data', array("GET / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nbla\r\n0\r\n\r\n"));
+    }
+
+    public function testServerRequestWillBeUsedForCallable()
+    {
+        $callback = function (ServerRequestInterface $request) {
+            return new Response();
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->expects($this->once())->method('end');
+        $this->connection->expects($this->once())->method('pause');
+        $this->connection->expects($this->never())->method('resume');
+
+        $this->connection->emit('data', array("GET / HTTP/1.1\r\n\r\n"));
+    }
+
+    public function testServerRequestCanBeUsedInMiddleware()
+    {
+        $callback = function (ServerRequestInterface $request) {
+            $cookies = $request->getCookieParams();
+
+            if ($cookies['hello'] !== 'world') {
+                throw new Exception();
+            }
+
+            return new Response();
+        };
+
+        $middleware = function (ServerRequestInterface $request, $next) {
+            $request = $request->withCookieParams(array('hello' => 'world'));
+            return $next($request);
+        };
+
+        $socket = new Socket($this->loop);
+        $server = new HttpServer($socket, $callback);
+        $server->addMiddleware($middleware);
+
+        $socket->emit('connection', array($this->connection));
+
+        $this->connection->expects($this->once())->method('write')->with($this->equalTo("HTTP/1.1 200 OK\r\n\r\n"));
+        $this->connection->expects($this->once())->method('end');
+        $this->connection->expects($this->once())->method('pause');
+        $this->connection->expects($this->never())->method('resume');
+
+        $this->connection->emit('data', array("GET / HTTP/1.1\r\n\r\n"));
     }
 }

@@ -3,12 +3,12 @@
 use Legionth\React\Http\HttpServer;
 use React\Socket\Server as Socket;
 use RingCentral\Psr7\Response;
-use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use React\Promise\Promise;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$callback = function(RequestInterface $request) {
+$callback = function(ServerRequestInterface $request) {
     return new Promise(function ($resolve, $reject) use ($request) {
         $responseBody = $request->getBody();
 
@@ -33,7 +33,7 @@ $callback = function(RequestInterface $request) {
     });
 };
 
-$badWordFilterMiddleware = function ($request, $next) {
+$badWordFilterMiddleware = function (ServerRequestInterface $request, $next) {
     $responseBody = $request->getBody();
 
     $responseBody->on('data', function ($data, $responseBody) {
