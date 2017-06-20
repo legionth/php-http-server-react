@@ -15,6 +15,11 @@ HTTP server written in PHP on top of ReactPHP.
   * [HTTPS server](#https-server)
 * [License](#license)
 
+## Notice (June 2017)
+
+This repository is just a prototype and won't be supported anymore.
+Every feature of this prototype moved to the official [ReactPHP HTTP-Server](https://github.com/reactphp/http).
+
 ## Usage
 
 ### HttpServer
